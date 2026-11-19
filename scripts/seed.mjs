@@ -76,6 +76,7 @@ const SETTINGS = {
   logoUrl: '',
   facebookUrl: 'https://www.facebook.com/example',
   aboutHtml: '<p>ข้อมูลสถานศึกษาตัวอย่าง</p><script data-evil>window.__evil = 1</script>',
+  banners: [{ imageUrl: 'https://example.com/banner1.jpg', linkUrl: 'https://example.com/promo' }],
   executives: [{ name: 'นายผู้อำนวยการ ตัวอย่าง', position: 'ผู้อำนวยการโรงเรียน', photoUrl: '' }],
 };
 

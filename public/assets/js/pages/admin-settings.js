@@ -94,7 +94,7 @@ if (settings.aboutHtml) quill.clipboard.dangerouslyPasteHTML(sanitize(settings.a
 async function uploadPending() {
   if (logoFile) { logoUrl = await uploadImage('site/logo.jpg', logoFile); logoFile = null; }
   for (const b of banners) if (b.file) { b.imageUrl = await uploadImage(`site/banner-${rid()}.jpg`, b.file); b.file = null; }
-  for (const x of execs) if (x.file) { x.photoUrl = await uploadImage(`site/exec-${rid()}.jpg`, x.file); x.file = null; }
+  for (const x of execs) if (x.file && x.name.trim()) { x.photoUrl = await uploadImage(`site/exec-${rid()}.jpg`, x.file); x.file = null; }
 }
 
 document.getElementById('settings-form').addEventListener('submit', async (e) => {
@@ -105,6 +105,7 @@ document.getElementById('settings-form').addEventListener('submit', async (e) =>
   // validate text first so nothing is uploaded for a form that cannot be saved
   const text = { schoolName: el.schoolName.value, facebookUrl: el.facebookUrl.value, banners: banners.map((b) => ({ imageUrl: b.imageUrl || 'pending', linkUrl: b.linkUrl })) };
   const pre = buildSettingsPayload({ form: { ...text, executives: [] }, sanitize });
+  if (!pre.error && execs.some((x) => x.file && !x.name.trim())) { errEl.textContent = 'กรุณากรอกชื่อผู้บริหารที่เลือกรูปไว้ หรือลบรายการนั้นออก'; return; }
   if (pre.error) { errEl.textContent = pre.error; return; }
   btn.disabled = true;
   try {

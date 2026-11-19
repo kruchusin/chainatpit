@@ -148,6 +148,7 @@ async function onCreate(e) {
     const s = staff.find((x) => x.id === v.data.staffId);
     const out = await callAdminUsers('create', { ...v.data, displayName: s ? [s.prefix, s.name].filter(Boolean).join('') : undefined });
     noticeEl.textContent = out.recovered ? RECOVERED_MESSAGE : 'สร้างบัญชีเรียบร้อยแล้ว';
+    form.reset();
     createBox.hidden = true;
     await reload();
   } catch (err) {

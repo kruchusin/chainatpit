@@ -1,9 +1,16 @@
 import { mountLayout, renderNewsCard } from '../ui.js';
 import { listNews } from '../data.js';
+import { renderBanners } from '../lib/banners.js';
 
 const { settings } = await mountLayout({ active: 'home' });
 const hero = document.getElementById('hero-text');
 if (hero && settings.welcomeText) hero.textContent = settings.welcomeText;
+
+const bannerBox = document.getElementById('banners');
+if (bannerBox) {
+  const html = renderBanners(settings.banners, settings.schoolName || 'โรงเรียนชัยนาทพิทยาคม');
+  if (html) { bannerBox.innerHTML = html; bannerBox.hidden = false; }
+}
 
 const box = document.getElementById('latest-news');
 try {

@@ -133,3 +133,14 @@ test('new pages usable at 375px width (no horizontal scroll)', async ({ page }) 
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
   }
 });
+
+test('home page shows the seeded banner without horizontal scroll', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 700 });
+  await page.goto('/');
+  const banner = page.locator('#banners .banner-slide img');
+  await expect(banner).toHaveCount(1);
+  await expect(banner).toHaveAttribute('src', 'https://example.com/banner1.jpg');
+  await expect(page.locator('#banners a')).toHaveAttribute('href', 'https://example.com/promo');
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+  expect(overflow).toBe(false);
+});
