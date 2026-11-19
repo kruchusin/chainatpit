@@ -1,0 +1,25 @@
+{
+  "name": "chainatpit-school-website",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler pages dev public --port 8788",
+    "seed:emu": "node scripts/seed.mjs --emulator",
+    "test:unit": "vitest run --project unit",
+    "test:rules": "firebase emulators:exec --only firestore,storage \"vitest run --project rules\"",
+    "test:e2e": "firebase emulators:exec --only auth,firestore,storage \"playwright test\"",
+    "test": "npm run test:unit && npm run test:rules && npm run test:e2e"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.0",
+    "@playwright/test": "^1.49.0",
+    "dompurify": "^3.2.0",
+    "firebase": "^11.0.0",
+    "firebase-admin": "^13.0.0",
+    "firebase-tools": "^14.0.0",
+    "jsdom": "^25.0.0",
+    "vitest": "^3.0.0",
+    "wrangler": "^4.0.0"
+  }
+}

@@ -1,0 +1,10 @@
+rules_version = '2';
+
+// Placeholder: deny everything. Task 4 replaces this with real rules.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

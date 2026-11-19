@@ -1,0 +1,71 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- helpers (reused by later rule sections) ----------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    // users/{uid}.data of the caller (only call after isSignedIn())
+    function me() {
+      return get(userPath()).data;
+    }
+
+    // signed in, has a users doc, and not disabled
+    function isActive() {
+      return isSignedIn()
+        && exists(userPath())
+        && me().get('disabled', false) != true;
+    }
+
+    function isAdmin() {
+      return isActive() && me().get('role', '') == 'admin';
+    }
+
+    function isPrCentral() {
+      return isActive() && me().get('role', '') == 'pr_central';
+    }
+
+    // [] when the field is missing
+    function prDepts() {
+      return me().get('prDepartments', []);
+    }
+
+    function ownsDept(id) {
+      return isActive() && (id in prDepts());
+    }
+
+    // ---------- users ----------
+    match /users/{uid} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // ---------- settings ----------
+    match /settings/{doc} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ---------- departments ----------
+    match /departments/{id} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin()
+        || (ownsDept(id)
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['description', 'coverUrl']));
+    }
+
+    // default deny: anything not matched above
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
