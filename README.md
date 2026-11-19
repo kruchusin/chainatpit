@@ -88,7 +88,7 @@ java -version
 
    คำสั่งนี้ส่ง `firestore.rules`, `firestore.indexes.json` และ `storage.rules` ขึ้นไป (ดัชนีใช้เวลาสร้างสักครู่ดูสถานะได้ใน Firestore -> Indexes)
 7. **สร้าง service account key** (ใช้ในข้อ 6 และ 7 ด้านล่าง) Project settings -> Service accounts -> Generate new private key
-   จะได้ไฟล์ `.json` หนึ่งไฟล์ เก็บไว้ในที่ปลอดภัยนอกโฟลเดอร์โปรเจกต์ เช่น `C:\keys\chainatpit-key.json`
+   จะได้ไฟล์ `.json` หนึ่งไฟล์ เก็บไว้ในที่ปลอดภัยนอกโฟลเดอร์โปรเจกต์ เช่น `C:\keys\chainatpit.key.json`
 
    > **คำเตือน: ห้าม commit หรืออัปโหลดไฟล์ key นี้ขึ้น GitHub เด็ดขาด** ใครได้ไฟล์นี้ไปจะเข้าถึงฐานข้อมูลทั้งหมดได้
    > ถ้าหลุดไปแล้วให้ลบ key นั้นทิ้งที่ Service accounts ทันทีแล้วสร้างใหม่
@@ -114,7 +114,7 @@ npm test
 **ความจริงที่ต้องบอกตรงๆ:** ระหว่างพัฒนา เครื่องที่ใช้สร้างเว็บนี้ **ไม่มีอินเทอร์เน็ต** จึงติดตั้งแพ็กเกจไม่ได้
 ชุดทดสอบ **กฎความปลอดภัย (`test:rules`), e2e (`test:e2e`) และชุดทดสอบ sanitize (ที่ต้องใช้ jsdom/dompurify)
 ถูกเขียนไว้ครบแล้วแต่ยังไม่เคยถูกรันจริง** (ตรวจได้แค่ไวยากรณ์และอ่านเทียบกับโค้ด)
-ส่วน unit test อื่นๆ รันผ่านด้วยตัวจำลอง vitest ในเครื่องพัฒนา
+ส่วนที่เป็นตรรกะล้วนทดสอบแล้ว แต่ส่วนที่ต้องใช้ฐานข้อมูลจำลองและเบราว์เซอร์ยังไม่ได้ทดสอบ
 **ดังนั้นคุณต้องรัน `npm test` ให้ผ่านทั้งหมดก่อนเปิดใช้งานจริง** ถ้ามีข้อใดไม่ผ่านให้ส่งข้อความ error ให้ผู้พัฒนาแก้
 
 ---
@@ -176,7 +176,7 @@ npm test
 **ห้ามอัปโหลดสิ่งเหล่านี้**
 
 - `node_modules/` (โฟลเดอร์ใหญ่ ไม่จำเป็น ติดตั้งใหม่ได้เสมอ)
-- ไฟล์ key JSON ของ service account (ทุกไฟล์ที่ลงท้าย `.key.json` หรือไฟล์ที่ดาวน์โหลดจากข้อ 2.7)
+- ไฟล์ key JSON ของ service account (ชื่อที่ `.gitignore` กันไว้ให้คือ `*.key.json`, `*-key.json`, `*adminsdk*.json`, `*serviceAccount*.json` แนะนำให้เปลี่ยนชื่อไฟล์ที่ดาวน์โหลดเป็น `chainatpit.key.json`)
 - `.dev.vars` (ไฟล์ตั้งค่าบนเครื่อง)
 - `migration/out/` (ข้อมูลที่ scrape มา)
 
@@ -196,10 +196,14 @@ npm test
    | ชื่อ | ค่า |
    |---|---|
    | `FIREBASE_PROJECT_ID` | `chainatpit-a8c9c` |
-   | `FIREBASE_API_KEY` | Web API Key ตัวเดียวกับที่ใส่ใน `firebase.js` |
+   | `FIREBASE_API_KEY` | Web API Key ตัวเดียวกับที่ใส่ใน `firebase.js` (หรือคีย์แยกตามหมายเหตุด้านล่าง) |
    | `FIREBASE_SERVICE_ACCOUNT` | **เปิด Encrypt** แล้ววางเนื้อหา JSON ของ service account key **ทั้งไฟล์** (เปิดไฟล์ด้วย Notepad คัดลอกทั้งหมด) |
 
-4. กด Save and Deploy จะได้ที่อยู่แบบ `https://ชื่อโปรเจกต์.pages.dev`
+4. (ไม่บังคับ) ตัวแปร `SITE_NAME` ชื่อเว็บที่ใช้ในการ์ดแชร์ Facebook (Open Graph) ถ้าไม่ตั้งจะใช้ "โรงเรียนชัยนาทพิทยาคม"
+5. (ไม่บังคับ แนะนำ) ใช้ API key **แยกกัน 2 ตัว** ที่ Google Cloud Console -> APIs & Services -> Credentials:
+   ตัวที่ใส่ใน `firebase.js` ให้จำกัด HTTP referrer (`www.chainatpit.ac.th/*`, `*.pages.dev/*`)
+   ส่วนตัวที่ใส่ใน Pages `FIREBASE_API_KEY` ให้จำกัด API เฉพาะ Cloud Firestore API และ **ไม่จำกัด referrer** เพราะเซิร์ฟเวอร์ Cloudflare เรียกโดยไม่มี referrer
+6. กด Save and Deploy จะได้ที่อยู่แบบ `https://ชื่อโปรเจกต์.pages.dev`
 
 > หมายเหตุ: การอัปโหลดแบบ drag-and-drop ในหน้า dashboard ของ Cloudflare **ไม่รองรับ Functions**
 > (หน้าข่าวแชร์ Facebook และการจัดการบัญชีผู้ใช้จะไม่ทำงาน) จึงต้องใช้วิธีเชื่อม GitHub ตามนี้เท่านั้น
@@ -214,7 +218,7 @@ npm test
 **Command Prompt (cmd)**
 
 ```
-set GOOGLE_APPLICATION_CREDENTIALS=C:\keys\chainatpit-key.json
+set GOOGLE_APPLICATION_CREDENTIALS=C:\keys\chainatpit.key.json
 node scripts/seed.mjs --first-admin ชื่ออีเมล@example.com รหัสผ่านอย่างน้อย8ตัว --yes
 node scripts/seed.mjs --yes
 ```
@@ -222,7 +226,7 @@ node scripts/seed.mjs --yes
 **PowerShell**
 
 ```
-$env:GOOGLE_APPLICATION_CREDENTIALS = "C:\keys\chainatpit-key.json"
+$env:GOOGLE_APPLICATION_CREDENTIALS = "C:\keys\chainatpit.key.json"
 node scripts/seed.mjs --first-admin ชื่ออีเมล@example.com รหัสผ่านอย่างน้อย8ตัว --yes
 node scripts/seed.mjs --yes
 ```

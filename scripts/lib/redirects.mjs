@@ -7,7 +7,7 @@ export const REDIRECT_TITLES = [
   { title: 'คณะผู้บริหารและบุคลากร', target: '/staff.html' },
   { title: 'ข่าวประชาสัมพันธ์', target: '/news.html', splat: true },
   { title: 'ภาพกิจกรรม', target: '/gallery.html', splat: true },
-  { title: 'ITA', target: '/ita.html' },
+  { title: 'ITA', target: '/ita.html', splat: true },
 ];
 
 // A title whose slug already equals the page's clean URL (e.g. ita) needs no rule.

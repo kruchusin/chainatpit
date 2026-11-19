@@ -31,9 +31,15 @@ describe('public/_redirects', () => {
   it('has a 301 rule for every known title, raw and percent-encoded', () => {
     for (const { title, target, splat } of REDIRECT_TITLES) {
       if (isSelfMapped(title, target)) {
-        // Pages serves /ita.html at /ita already; a rule would loop.
+        // Pages serves /ita.html at /ita already; the base rule would loop, so only /ita/* is expected.
         expect(rules.find((x) => x.from === '/' + googleSitesSlug(title))).toBeUndefined();
         expect(existsSync(new URL('../../public' + target, import.meta.url))).toBe(true);
+        for (const from of [`/${googleSitesSlug(title)}/*`, `/${encodeURIComponent(googleSitesSlug(title))}/*`]) {
+          const r = rules.find((x) => x.from === from);
+          expect(r).toBeDefined();
+          expect(r.to).toBe(target);
+          expect(r.status).toBe('301');
+        }
         continue;
       }
       const raw = '/' + googleSitesSlug(title);

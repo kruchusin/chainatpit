@@ -5,3 +5,6 @@ migration/out/
 .dev.vars
 .env*
 *-debug.log
+*-key.json
+*adminsdk*.json
+*serviceAccount*.json
