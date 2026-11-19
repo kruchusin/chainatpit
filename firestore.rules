@@ -63,6 +63,52 @@ service cloud.firestore {
                  .hasOnly(['description', 'coverUrl']));
     }
 
+    // ---------- staff ----------
+    match /staff/{id} {
+      // whole-document allow-list (no phone: PDPA)
+      function staffKeysOk() {
+        return request.resource.data.keys().hasOnly(
+          ['prefix', 'name', 'position', 'photoUrl', 'bio', 'education',
+           'email', 'departmentIds', 'uid', 'order', 'active']);
+      }
+
+      function staffChanged() {
+        return request.resource.data.diff(resource.data).affectedKeys();
+      }
+
+      function isStaffSelf() {
+        return isActive() && resource.data.uid == request.auth.uid;
+      }
+
+      // PR of a department the staff currently belongs to (call only with isActive())
+      function isStaffPr() {
+        return isActive() && resource.data.departmentIds.hasAny(prDepts());
+      }
+
+      // Public may read active staff (queries must filter active == true).
+      allow read: if resource.data.active == true
+        || isAdmin()
+        || isStaffSelf()
+        || isStaffPr();
+
+      allow create: if isAdmin() && staffKeysOk();
+      allow delete: if isAdmin();
+
+      allow update: if staffKeysOk() && (
+        isAdmin()
+        || (isStaffSelf()
+            && staffChanged().hasOnly(['photoUrl', 'bio', 'education', 'email']))
+        || (isStaffPr()
+            && !staffChanged().hasAny(['uid'])
+            && resource.data.departmentIds.toSet()
+                 .difference(request.resource.data.departmentIds.toSet())
+                 .hasOnly(prDepts())
+            && request.resource.data.departmentIds.toSet()
+                 .difference(resource.data.departmentIds.toSet())
+                 .hasOnly(prDepts()))
+      );
+    }
+
     // default deny: anything not matched above
     match /{document=**} {
       allow read, write: if false;
