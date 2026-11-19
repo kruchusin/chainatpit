@@ -94,4 +94,20 @@ describe('onRequestGet', () => {
     expect(res.status).toBe(404);
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
+  it('og: non-http(s) image is not emitted', async () => {
+    mockDoc(200, { title: 't', bodyHtml: '', published: true, coverUrl: 'javascript:alert(1)', images: ['https://img/1.jpg'] });
+    const html = await (await call('a')).text();
+    expect(html).not.toContain('og:image');
+    expect(html).not.toContain('javascript:');
+  });
+  it('og: FIRESTORE_EMULATOR_HOST alone still uses the production URL', async () => {
+    mockDoc(200, { title: 't', bodyHtml: '', published: true });
+    await onRequestGet({ request: new Request('https://school.example/news/a'), env: { ...env, FIRESTORE_EMULATOR_HOST: '127.0.0.1:8080' }, params: { id: 'a' } });
+    expect(globalThis.fetch.mock.calls[0][0]).toBe(DOC('a'));
+  });
+  it('og: both emulator vars → emulator URL without key', async () => {
+    mockDoc(200, { title: 't', bodyHtml: '', published: true });
+    await onRequestGet({ request: new Request('https://school.example/news/a'), env: { ...env, FIRESTORE_EMULATOR_HOST: '127.0.0.1:8080', FIREBASE_AUTH_EMULATOR_HOST: '127.0.0.1:9099' }, params: { id: 'a' } });
+    expect(globalThis.fetch.mock.calls[0][0]).toBe(`http://127.0.0.1:8080/v1/projects/${PID}/databases/(default)/documents/news/a`);
+  });
 });

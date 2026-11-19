@@ -1,7 +1,7 @@
 // GET /news/{id}: serves news-detail.html with Open Graph meta injected.
 // Missing / unpublished / unreadable news -> /404.html with status 404 (never 500).
 // Workers Web APIs only; no npm imports.
-import { decodeFields } from '../_lib/google-auth.js';
+import { decodeFields, isEmulator } from '../_lib/google-auth.js';
 
 const ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
 const DEFAULT_SITE_NAME = 'โรงเรียนชัยนาทพิทยาคม';
@@ -67,7 +67,7 @@ async function notFound(env, origin) {
 function docUrl(env, id) {
   const pid = env.FIREBASE_PROJECT_ID;
   const path = `/v1/projects/${pid}/databases/(default)/documents/news/${id}`;
-  if (env.FIRESTORE_EMULATOR_HOST) return `http://${env.FIRESTORE_EMULATOR_HOST}${path}`; // local dev/e2e
+  if (isEmulator(env)) return `http://${env.FIRESTORE_EMULATOR_HOST}${path}`; // local dev/e2e
   return `https://firestore.googleapis.com${path}?key=${encodeURIComponent(env.FIREBASE_API_KEY || '')}`;
 }
 
@@ -84,7 +84,8 @@ export async function onRequestGet({ request, env, params }) {
 
     const page = await fetchAsset(env, url.origin, '/news-detail.html');
     if (!page.ok) return await notFound(env, url.origin);
-    const image = news.coverUrl || (Array.isArray(news.images) && news.images[0]) || undefined;
+    const rawImage = news.coverUrl || (Array.isArray(news.images) && news.images[0]) || '';
+    const image = /^https?:\/\//i.test(String(rawImage)) ? String(rawImage) : undefined;
     const tags = buildOgTags({
       title: news.title || DEFAULT_SITE_NAME,
       description: describe(news.bodyHtml),

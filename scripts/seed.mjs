@@ -76,11 +76,24 @@ const SETTINGS = {
 };
 
 async function seedDepartmentsAndSettings() {
+  // Real project: never overwrite existing docs (admins may have edited them). Emulator: overwrite.
+  const writes = [
+    ...DEPARTMENTS.map(([id, type, name], i) => [`departments/${id}`, { name, type, order: i + 1 }]),
+    ['settings/site', SETTINGS],
+  ];
   const batch = db.batch();
-  DEPARTMENTS.forEach(([id, type, name], i) => batch.set(db.doc(`departments/${id}`), { name, type, order: i + 1 }));
-  batch.set(db.doc('settings/site'), SETTINGS);
-  await batch.commit();
-  console.log(`ใส่ข้อมูลหน่วยงาน ${DEPARTMENTS.length} รายการ และ settings แล้ว`);
+  let created = 0;
+  for (const [path, data] of writes) {
+    const ref = db.doc(path);
+    if (!emulator && (await ref.get()).exists) {
+      console.log(`ข้าม ${path}: มีข้อมูลอยู่แล้ว (ไม่เขียนทับ)`);
+      continue;
+    }
+    batch.set(ref, data);
+    created++;
+  }
+  if (created) await batch.commit();
+  console.log(`เขียนข้อมูลหน่วยงานและ settings ใหม่ ${created} จาก ${writes.length} รายการ`);
 }
 
 async function createAuthUser(uid, email, password) {
