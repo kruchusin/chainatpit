@@ -2,7 +2,7 @@ import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import { readFileSync } from 'node:fs';
 import { doc, setDoc } from 'firebase/firestore';
 
-export const PROJECT_ID = 'chainatpit-rules-test';
+export const PROJECT_ID = 'demo-chainatpit';
 
 export async function getEnv() {
   return initializeTestEnvironment({
