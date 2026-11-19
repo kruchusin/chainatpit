@@ -1,6 +1,7 @@
 // Read helpers. Every query is one the Firestore rules allow anonymously:
 // news lists filter published == true, staff lists filter active == true.
-import { db, firestoreSdk as f } from './firebase.js';
+import { db, storage, firestoreSdk as f, storageSdk as st } from './firebase.js';
+import { resizeImage } from './lib/image-resize.js';
 import { collectFiltered } from './lib/paginate.js';
 
 const withId = (d) => ({ id: d.id, ...d.data() });
@@ -78,4 +79,25 @@ export async function listGalleryNews({ pageSize = 12, after } = {}) {
     },
   });
   return { items: items.map(withId), cursor };
+}
+
+// ---------- admin helpers (allowed by the rules only for signed-in users) ----------
+
+// users/{uid} -> {uid, ...data} or null when missing
+export async function getMyProfile(uid) {
+  const snap = await f.getDoc(f.doc(db, 'users', uid));
+  return snap.exists() ? { uid, ...snap.data() } : null;
+}
+
+// Partial update; the rules decide which fields the caller may change.
+export async function updateStaff(id, partial) {
+  await f.updateDoc(f.doc(db, 'staff', id), partial);
+}
+
+// Resizes (<=1600px, <=2MB JPEG) then uploads. Throws ImageDecodeError for unreadable files.
+export async function uploadImage(path, file) {
+  const blob = await resizeImage(file);
+  const r = st.ref(storage, path);
+  await st.uploadBytes(r, blob, { contentType: 'image/jpeg' });
+  return st.getDownloadURL(r);
 }
