@@ -27,9 +27,9 @@ export async function confirmDialog({ title, message, okLabel = 'ตกลง', 
 }
 
 // -> Promise<string|null> (null when cancelled)
-export function promptDialog({ title, label, okLabel = 'ตกลง', placeholder = '' }) {
+export function promptDialog({ title, label, okLabel = 'ตกลง', placeholder = '', inputType = 'text' }) {
   return open({
     title, okLabel,
-    body: `<div class="form-field"><label for="dlg-input">${esc(label)}</label><input id="dlg-input" type="text" placeholder="${esc(placeholder)}"></div>`,
+    body: `<div class="form-field"><label for="dlg-input">${esc(label)}</label><input id="dlg-input" type="${esc(inputType)}" autocomplete="off" placeholder="${esc(placeholder)}"></div>`,
   });
 }

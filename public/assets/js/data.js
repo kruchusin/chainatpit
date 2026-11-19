@@ -1,6 +1,9 @@
 // Read helpers. Every query is one the Firestore rules allow anonymously:
 // news lists filter published == true, staff lists filter active == true.
-import { db, storage, firestoreSdk as f, storageSdk as st } from './firebase.js';
+import { db, auth, storage, firestoreSdk as f, storageSdk as st } from './firebase.js';
+import { callAdminUsersWith } from './lib/admin-api.js';
+import { DOC_KEYS } from './lib/doc-edit.js';
+import { SETTINGS_KEYS } from './lib/settings-edit.js';
 import { resizeImage } from './lib/image-resize.js';
 import { cacheBust } from './lib/url.js';
 import { collectFiltered } from './lib/paginate.js';
@@ -246,4 +249,49 @@ export async function deleteDepartment(id) {
   } catch (e) {
     if (!(e && e.code === 'storage/object-not-found')) console.error('deleteDepartment: could not delete cover', e);
   }
+}
+
+// ---------- admin users / settings / documents helpers ----------
+
+// POST /api/admin/users. Throws Error (.code = server code, .message = Thai message) on failure.
+export function callAdminUsers(action, payload) {
+  return callAdminUsersWith({
+    fetchFn: (...a) => fetch(...a),
+    getToken: () => auth.currentUser.getIdToken(),
+    action, payload,
+  });
+}
+
+// Admin only (rules). All users/* docs.
+export async function listUsers() {
+  return (await f.getDocs(f.collection(db, 'users'))).docs.map((d) => ({ uid: d.id, ...d.data() }));
+}
+
+// Writes Firestore directly (rules: admin may write users). Only role and prDepartments.
+export async function updateUserRole(uid, { role, prDepartments }) {
+  await f.updateDoc(f.doc(db, 'users', uid), { role, prDepartments });
+}
+
+// Admin only. merge:true keeps fields this page does not manage (welcomeText, email...).
+export async function saveSettings(data) {
+  const bad = Object.keys(data).filter((k) => !SETTINGS_KEYS.includes(k));
+  if (bad.length) throw new Error(`saveSettings: unexpected keys ${bad.join(', ')}`);
+  await f.setDoc(f.doc(db, 'settings', 'site'), data, { merge: true });
+}
+
+// id omitted -> create (auto id, returns it). `data` must be exactly DOC_KEYS (rules: hasOnly).
+export async function saveDocument(id, data) {
+  const bad = Object.keys(data).filter((k) => !DOC_KEYS.includes(k));
+  if (bad.length) throw new Error(`saveDocument: unexpected keys ${bad.join(', ')}`);
+  if (id) {
+    await f.setDoc(f.doc(db, 'documents', id), data); // full replace keeps the key set exact
+    return id;
+  }
+  const ref = f.doc(f.collection(db, 'documents'));
+  await f.setDoc(ref, data);
+  return ref.id;
+}
+
+export async function deleteDocument(id) {
+  await f.deleteDoc(f.doc(db, 'documents', id));
 }
