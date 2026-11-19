@@ -108,11 +108,19 @@ service cloud.firestore {
         return isActive() && resource.data.departmentIds.hasAny(prDepts());
       }
 
-      // Public may read active staff (queries must filter active == true).
-      allow read: if resource.data.active == true
+      // get: public reads active staff; admin / the person / a PR of one of their departments read any.
+      allow get: if resource.data.active == true
         || isAdmin()
         || isStaffSelf()
         || isStaffPr();
+
+      // list: queries must be provable, so no per-document department check here (a single
+      // array-contains cannot be proven to satisfy hasAny(prDepts())). Public lists must filter
+      // active == true. NOTE: any active dept PR (non-empty prDepartments) may list inactive staff of
+      // other departments. Accepted (internal staff; the admin UI shows only their own).
+      allow list: if resource.data.active == true
+        || isAdmin()
+        || (isActive() && prDepts().size() > 0);
 
       allow create: if isAdmin() && staffKeysOk();
       allow delete: if isAdmin();

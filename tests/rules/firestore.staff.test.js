@@ -88,4 +88,33 @@ describe('staff rules', () => {
       setDoc(doc(ctx('admin'), 'staff/new'), { departmentIds: [], active: true, phone: '0812345678' })
     );
   });
+
+  it('admin lists all staff incl. inactive (no filter)', async () => {
+    const snap = await assertSucceeds(getDocs(collection(ctx('admin'), 'staff')));
+    if (!snap.docs.some((d) => d.id === 's3')) throw new Error('inactive s3 missing');
+  });
+
+  it('prMath lists staff of math via array-contains (incl. inactive s3)', async () => {
+    const snap = await assertSucceeds(
+      getDocs(query(collection(ctx('prMath'), 'staff'), where('departmentIds', 'array-contains', 'math')))
+    );
+    if (!snap.docs.some((d) => d.id === 's3')) throw new Error('inactive s3 missing');
+  });
+
+  it('prMulti lists each owned department separately', async () => {
+    await assertSucceeds(
+      getDocs(query(collection(ctx('prMulti'), 'staff'), where('departmentIds', 'array-contains', 'academic')))
+    );
+  });
+
+  it('t1 (no prDepartments) and disabled admin cannot list unfiltered', async () => {
+    await assertFails(getDocs(collection(ctx('t1'), 'staff')));
+    await assertFails(getDocs(collection(ctx('off'), 'staff')));
+  });
+
+  it('get of inactive staff stays scoped: prMath gets s3; anon and t1 cannot', async () => {
+    await assertSucceeds(getDoc(doc(ctx('prMath'), 'staff/s3')));
+    await assertFails(getDoc(doc(anon(), 'staff/s3')));
+    await assertFails(getDoc(doc(ctx('t1'), 'staff/s3')));
+  });
 });

@@ -6,6 +6,7 @@ import { cacheBust } from './lib/url.js';
 import { collectFiltered } from './lib/paginate.js';
 import { isAdmin, isPrCentral, prDepts } from './lib/permissions.js';
 import { NEWS_WRITE_KEYS } from './lib/news-payload.js';
+import { swapOrders } from './lib/staff-edit.js';
 
 const withId = (d) => ({ id: d.id, ...d.data() });
 
@@ -162,4 +163,82 @@ export async function deleteNews(id) {
     console.error('deleteNews: could not delete storage files', e);
   }
   await f.deleteDoc(f.doc(db, 'news', id));
+}
+
+// ---------- admin staff / departments helpers ----------
+
+// Editor list of staff, active and inactive, sorted by order.
+// admin: whole collection (no filter; the rules allow admin). Dept PR: one array-contains query per owned
+// department (the list rule cannot prove a per-document department check), merged by id.
+// Other users: [] (menu hides this page). The page hides staff the user cannot edit.
+export async function listStaffForEditor(profile) {
+  const col = f.collection(db, 'staff');
+  let docs;
+  if (isAdmin(profile)) {
+    docs = (await f.getDocs(col)).docs;
+  } else {
+    const depts = prDepts(profile);
+    const snaps = await Promise.all(depts.map((d) => f.getDocs(f.query(col, f.where('departmentIds', 'array-contains', d)))));
+    docs = snaps.flatMap((s) => s.docs);
+  }
+  const byId = new Map(docs.map((d) => [d.id, withId(d)]));
+  return [...byId.values()].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)
+    || String(a.name).localeCompare(String(b.name), 'th'));
+}
+
+// getDoc (rules: get is per-document scope). null when missing.
+export async function getStaffForEditor(id) {
+  const snap = await f.getDoc(f.doc(db, 'staff', id));
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+}
+
+// Admin only (rules). Creates an active, unlinked record at the end of the order. Returns the id.
+export async function createStaff() {
+  const top = await f.getDocs(f.query(f.collection(db, 'staff'), f.orderBy('order', 'desc'), f.limit(1)));
+  const max = top.empty ? 0 : Number(top.docs[0].data().order) || 0;
+  const ref = f.doc(f.collection(db, 'staff'));
+  await f.setDoc(ref, {
+    prefix: '', name: '', position: '', photoUrl: '', bio: '', education: '', email: '',
+    departmentIds: [], uid: null, order: max + 1, active: true,
+  });
+  return ref.id;
+}
+
+// Swaps `order` of two docs {id, order} in one atomic batch (two updateDoc writes).
+// collection: 'staff' | 'departments'.
+export async function swapOrder(collection, a, b) {
+  const batch = f.writeBatch(db);
+  for (const w of swapOrders(a, b)) batch.update(f.doc(db, collection, w.id), { order: w.order });
+  await batch.commit();
+}
+
+// Partial update; the rules decide what the caller may change (dept PR: description/coverUrl only).
+export async function saveDepartment(id, data) {
+  await f.updateDoc(f.doc(db, 'departments', id), data);
+}
+
+// Admin only. Auto-id (Thai names do not slugify). order = max + 1. Returns the id.
+export async function createDepartment(data) {
+  const top = await f.getDocs(f.query(f.collection(db, 'departments'), f.orderBy('order', 'desc'), f.limit(1)));
+  const max = top.empty ? 0 : Number(top.docs[0].data().order) || 0;
+  const ref = f.doc(f.collection(db, 'departments'));
+  await f.setDoc(ref, { description: '', externalUrl: '', coverUrl: '', ...data, order: max + 1 });
+  return ref.id;
+}
+
+export const DEPT_IN_USE_MESSAGE = 'ลบไม่ได้ เพราะยังมีบุคลากรหรือข่าวที่อยู่ในหน่วยงานนี้ กรุณาย้ายหรือลบออกก่อน';
+
+// Admin only. Refuses (Error with DEPT_IN_USE_MESSAGE, code 'dept-in-use') while any staff or news still
+// references the department. The staff query includes inactive staff and the news query includes drafts.
+export async function deleteDepartment(id) {
+  const [s, n] = await Promise.all([
+    f.getDocs(f.query(f.collection(db, 'staff'), f.where('departmentIds', 'array-contains', id), f.limit(1))),
+    f.getDocs(f.query(f.collection(db, 'news'), f.where('departmentIds', 'array-contains', id), f.limit(1))),
+  ]);
+  if (!s.empty || !n.empty) {
+    const err = new Error(DEPT_IN_USE_MESSAGE);
+    err.code = 'dept-in-use';
+    throw err;
+  }
+  await f.deleteDoc(f.doc(db, 'departments', id));
 }
