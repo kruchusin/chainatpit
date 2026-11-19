@@ -4,29 +4,14 @@ import {
   firestoreGet, firestorePatch, requireAdmin, identityToolkitBase, _resetCaches,
 } from '../../functions/_lib/google-auth.js';
 
-const P = 'proj-1';
-const ISS = `https://securetoken.google.com/${P}`;
-const T = 1_800_000_000; // seconds
-const NOW = T * 1000;
-const JWKS_URL = 'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com';
+import { P, T, NOW, JWKS_URL, kp, jwk, sign, good, makeServiceAccountPem } from './helpers/auth-fixtures.js';
 
+const ISS = `https://securetoken.google.com/${P}`;
 const b64u = (buf) => Buffer.from(buf).toString('base64url');
 const enc = (o) => b64u(new TextEncoder().encode(JSON.stringify(o)));
-
-const kp = await crypto.subtle.generateKey(
-  { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' }, true, ['sign', 'verify']);
 const other = await crypto.subtle.generateKey(
   { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' }, true, ['sign', 'verify']);
-const jwk = { ...(await crypto.subtle.exportKey('jwk', kp.publicKey)), kid: 'k1', alg: 'RS256', use: 'sig' };
-
-async function sign(payload, { kid = 'k1', key = kp.privateKey } = {}) {
-  const h = enc({ alg: 'RS256', kid, typ: 'JWT' });
-  const body = enc(payload);
-  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(`${h}.${body}`));
-  return `${h}.${body}.${b64u(sig)}`;
-}
 const unsigned = (payload) => `${enc({ alg: 'none', typ: 'JWT' })}.${enc(payload)}.`;
-const good = (extra = {}) => ({ aud: P, iss: ISS, sub: 'u1', exp: T + 3600, iat: T, ...extra });
 
 const jwksFetch = (headers = { 'cache-control': 'public, max-age=3600' }) =>
   vi.fn(async () => new Response(JSON.stringify({ keys: [jwk] }), { status: 200, headers }));
@@ -90,12 +75,7 @@ describe('verifyFirebaseIdToken', () => {
 
 describe('getAccessToken', () => {
   let pem;
-  beforeEach(async () => {
-    const k = await crypto.subtle.generateKey(
-      { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' }, true, ['sign', 'verify']);
-    const der = Buffer.from(await crypto.subtle.exportKey('pkcs8', k.privateKey)).toString('base64');
-    pem = `-----BEGIN PRIVATE KEY-----\n${der.match(/.{1,64}/g).join('\n')}\n-----END PRIVATE KEY-----\n`;
-  });
+  beforeEach(async () => { pem = await makeServiceAccountPem(); });
   const tokFetch = () => vi.fn(async () => new Response(JSON.stringify({ access_token: 'ya29.x', expires_in: 3600 }), { status: 200 }));
 
   it('caches (fetch called once for two calls) and posts a signed JWT', async () => {
@@ -161,6 +141,13 @@ describe('firestore REST', () => {
     expect(init.method).toBe('PATCH');
     expect(JSON.parse(init.body)).toEqual({ fields: { disabled: { booleanValue: true } } });
   });
+  it('mustExist adds currentDocument.exists=true precondition', async () => {
+    const f = vi.fn(async () => new Response('{}', { status: 200 }));
+    await firestorePatch(P, 'staff/s1', { uid: 'x' }, 'tok', { fetchFn: f, updateMask: ['uid'], mustExist: true });
+    expect(f.mock.calls[0][0]).toBe(`${base}/staff/s1?updateMask.fieldPaths=uid&currentDocument.exists=true`);
+    await firestorePatch(P, 'staff/s1', { uid: 'x' }, 'tok', { fetchFn: f, mustExist: true });
+    expect(f.mock.calls[1][0]).toBe(`${base}/staff/s1?currentDocument.exists=true`);
+  });
   it('emulator host used when given', async () => {
     const f = vi.fn(async () => new Response('{}', { status: 200 }));
     await firestorePatch(P, 'a/b', { x: 1 }, 'owner', { fetchFn: f, firestoreHost: 'localhost:8080' });
@@ -179,12 +166,7 @@ describe('identityToolkitBase', () => {
 
 describe('requireAdmin', () => {
   let saPem;
-  beforeEach(async () => {
-    const k = await crypto.subtle.generateKey(
-      { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' }, true, ['sign', 'verify']);
-    const der = Buffer.from(await crypto.subtle.exportKey('pkcs8', k.privateKey)).toString('base64');
-    saPem = `-----BEGIN PRIVATE KEY-----\n${der.match(/.{1,64}/g).join('\n')}\n-----END PRIVATE KEY-----\n`;
-  });
+  beforeEach(async () => { saPem = await makeServiceAccountPem(); });
   const env = () => ({ FIREBASE_PROJECT_ID: P, FIREBASE_SERVICE_ACCOUNT: JSON.stringify({ client_email: 'sa@x', private_key: saPem }) });
   const req = (token) => new Request('https://x/api', { headers: token ? { Authorization: `Bearer ${token}` } : {} });
   const router = (userDoc) => vi.fn(async (url) => {

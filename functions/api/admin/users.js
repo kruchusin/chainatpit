@@ -1,6 +1,6 @@
 // POST /api/admin/users — admin-only account management (create / setPassword / setDisabled).
 // Identity Toolkit (Admin REST) for auth accounts, Firestore REST for users/staff docs.
-import { requireAdmin, identityToolkitBase, isEmulator, firestorePatch } from '../../_lib/google-auth.js';
+import { requireAdmin, identityToolkitBase, isEmulator, firestorePatch, firestoreGet } from '../../_lib/google-auth.js';
 import { json, errorJson } from '../../_lib/http.js';
 
 const ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
@@ -41,6 +41,7 @@ async function readBody(request) {
 
 export async function onRequestPost(context) {
   const { request, env } = context;
+  // context.data.deps is a test-only seam for injecting fetchFn/now; production never sets it.
   const deps = (context.data && context.data.deps) || {};
   const fetchFn = deps.fetchFn || fetch;
   try {
@@ -60,14 +61,38 @@ export async function onRequestPost(context) {
         || (displayName !== undefined && typeof displayName !== 'string')) return invalid();
       if (!strongEnough(password)) return weak();
 
-      const payload = { email, password };
-      if (displayName) payload.displayName = displayName;
-      const { localId } = await idt(env, accessToken, fetchFn, '/accounts', payload);
-      if (!localId) throw new Error('identity toolkit create returned no localId');
+      const staff = await firestoreGet(pid, `staff/${staffId}`, accessToken, fsOpts);
+      if (!staff) return errorJson(400, 'INVALID_INPUT', 'ไม่พบข้อมูลบุคลากร');
+      if (staff.uid !== undefined && staff.uid !== null && staff.uid !== '') {
+        return errorJson(409, 'STAFF_LINKED', 'บุคลากรนี้มีบัญชีอยู่แล้ว');
+      }
 
-      // If a write below fails the account stays; the admin can retry linking.
-      await firestorePatch(pid, `users/${localId}`, { email, staffId, role, prDepartments, disabled: false }, accessToken, fsOpts);
-      await firestorePatch(pid, `staff/${staffId}`, { uid: localId }, accessToken, { ...fsOpts, updateMask: ['uid'] });
+      const mail = email.toLowerCase();
+      const payload = { email: mail, password };
+      if (displayName) payload.displayName = displayName;
+
+      const link = async (uid) => {
+        // If a write fails the account stays; retrying create recovers it (see below).
+        await firestorePatch(pid, `users/${uid}`, { email: mail, staffId, role, prDepartments, disabled: false }, accessToken, fsOpts);
+        await firestorePatch(pid, `staff/${staffId}`, { uid }, accessToken, { ...fsOpts, updateMask: ['uid'], mustExist: true });
+      };
+
+      let localId;
+      try {
+        ({ localId } = await idt(env, accessToken, fetchFn, '/accounts', payload));
+      } catch (e) {
+        if (!(e instanceof Response) || e.status !== 409) throw e;
+        // Email taken: if the account has no users doc it is our orphan from a failed earlier create.
+        const found = await idt(env, accessToken, fetchFn, '/accounts:lookup', { email: [mail] });
+        const existing = found.users && found.users[0] && found.users[0].localId;
+        if (!isId(existing)) throw e;
+        if (await firestoreGet(pid, `users/${existing}`, accessToken, fsOpts)) throw e;
+        await idt(env, accessToken, fetchFn, '/accounts:update', { localId: existing, password });
+        await link(existing);
+        return json({ uid: existing, recovered: true }, 201);
+      }
+      if (!localId) throw new Error('identity toolkit create returned no localId');
+      await link(localId);
       return json({ uid: localId }, 201);
     }
 
@@ -96,7 +121,9 @@ export async function onRequestPost(context) {
 
 export async function onRequest(context) {
   if (context.request.method !== 'POST') {
-    return errorJson(405, 'METHOD_NOT_ALLOWED', 'ไม่รองรับวิธีเรียกนี้');
+    const res = errorJson(405, 'METHOD_NOT_ALLOWED', 'ไม่รองรับวิธีเรียกนี้');
+    res.headers.set('Allow', 'POST');
+    return res;
   }
   return onRequestPost(context);
 }

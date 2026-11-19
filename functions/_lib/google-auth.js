@@ -177,11 +177,12 @@ export async function firestoreGet(projectId, path, token, { fetchFn = fetch, fi
   return decodeFields(doc.fields);
 }
 
-export async function firestorePatch(projectId, path, data, token, { fetchFn = fetch, updateMask, firestoreHost } = {}) {
+export async function firestorePatch(projectId, path, data, token, { fetchFn = fetch, updateMask, firestoreHost, mustExist } = {}) {
   let url = docUrl(projectId, path, firestoreHost);
-  if (updateMask && updateMask.length) {
-    url += '?' + updateMask.map((f) => `updateMask.fieldPaths=${encodeURIComponent(f)}`).join('&');
-  }
+  const q = [];
+  if (updateMask && updateMask.length) q.push(...updateMask.map((f) => `updateMask.fieldPaths=${encodeURIComponent(f)}`));
+  if (mustExist) q.push('currentDocument.exists=true'); // precondition: fail instead of upserting
+  if (q.length) url += '?' + q.join('&');
   const res = await fetchFn(url, {
     method: 'PATCH',
     headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
