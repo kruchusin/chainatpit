@@ -41,12 +41,14 @@ export function buildStaffPatch({ old, form, editable, ownIds }) {
     if (v && !safeEmail(v)) return { error: 'รูปแบบอีเมลไม่ถูกต้อง' };
     if (v !== String(old.email ?? '')) data.email = v;
   }
-  if (can('departmentIds') && Array.isArray(form.checkedDeptIds)) {
+  // ownIds = only the ids that actually have a checkbox; with none, departmentIds is left out entirely
+  if (can('departmentIds') && Array.isArray(form.checkedDeptIds) && Array.isArray(ownIds) && ownIds.length) {
     const oldIds = Array.isArray(old.departmentIds) ? old.departmentIds : [];
     const next = mergeDepartmentIds(oldIds, form.checkedDeptIds, ownIds);
     const same = next.length === oldIds.length && next.every((id) => oldIds.includes(id));
     if (!same) data.departmentIds = next;
   }
+  if (can('active') && typeof form.active === 'boolean' && form.active !== (old.active === true)) data.active = form.active;
   if (can('photoUrl') && form.photoUrl && form.photoUrl !== old.photoUrl) data.photoUrl = form.photoUrl;
   return { data };
 }

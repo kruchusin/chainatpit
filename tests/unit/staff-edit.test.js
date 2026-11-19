@@ -85,6 +85,20 @@ describe('buildStaffPatch', () => {
     const r = buildStaffPatch({ old, form: { ...form, position: '  ครู  ' }, editable: ALL, ownIds: [] });
     expect(r.data).toEqual({});
   });
+  it('an owned id with no checkbox is preserved (ownIds holds only rendered boxes)', () => {
+    // PR owns math but the dept list failed to load: no checkbox, so ownIds is []
+    const r = buildStaffPatch({ old, form: { ...form, checkedDeptIds: [], position: 'ครูใหญ่' }, editable: ALL, ownIds: [] });
+    expect(r.data).toEqual({ position: 'ครูใหญ่' });
+    // a different dept has a checkbox: math (no box) must survive unticking it
+    const r2 = buildStaffPatch({ old: { ...old, departmentIds: ['math', 'sci'] }, form: { ...form, checkedDeptIds: [] }, editable: ALL, ownIds: ['sci'] });
+    expect(r2.data).toEqual({ departmentIds: ['math'] });
+  });
+  it('active toggle: sent only when it differs, only if editable', () => {
+    const hidden = { ...old, active: false };
+    expect(buildStaffPatch({ old: hidden, form: { ...form, active: true }, editable: ALL, ownIds: [] }).data).toEqual({ active: true });
+    expect(buildStaffPatch({ old: hidden, form: { ...form, active: false }, editable: ALL, ownIds: [] }).data).toEqual({});
+    expect(buildStaffPatch({ old: hidden, form: { ...form, active: true }, editable: ['bio'], ownIds: [] }).data).toEqual({});
+  });
   it('never emits uid, phone or other keys', () => {
     const r = buildStaffPatch({ old, form: { ...form, uid: 'x', phone: '081' }, editable: ALL, ownIds: [] });
     expect(r.data).toEqual({});

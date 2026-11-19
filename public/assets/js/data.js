@@ -192,14 +192,14 @@ export async function getStaffForEditor(id) {
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
-// Admin only (rules). Creates an active, unlinked record at the end of the order. Returns the id.
+// Admin only (rules). Creates a hidden (active:false), unlinked record at the end of the order. Returns the id.
 export async function createStaff() {
   const top = await f.getDocs(f.query(f.collection(db, 'staff'), f.orderBy('order', 'desc'), f.limit(1)));
   const max = top.empty ? 0 : Number(top.docs[0].data().order) || 0;
   const ref = f.doc(f.collection(db, 'staff'));
   await f.setDoc(ref, {
     prefix: '', name: '', position: '', photoUrl: '', bio: '', education: '', email: '',
-    departmentIds: [], uid: null, order: max + 1, active: true,
+    departmentIds: [], uid: null, order: max + 1, active: false, // hidden until the admin fills it in and turns it on
   });
   return ref.id;
 }
@@ -241,4 +241,9 @@ export async function deleteDepartment(id) {
     throw err;
   }
   await f.deleteDoc(f.doc(db, 'departments', id));
+  try {
+    await st.deleteObject(st.ref(storage, `departments/${id}/cover.jpg`));
+  } catch (e) {
+    if (!(e && e.code === 'storage/object-not-found')) console.error('deleteDepartment: could not delete cover', e);
+  }
 }

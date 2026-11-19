@@ -78,7 +78,7 @@ ${admin ? `<span class="row-actions">
 <button type="button" class="btn btn-danger btn-small" data-delete>ลบ</button></span>` : ''}</div>
 <form class="dept-form" novalidate>
 ${admin ? `<div class="form-field"><label for="n-${esc(d.id)}">ชื่อ</label><input id="n-${esc(d.id)}" name="name" type="text" value="${esc(d.name)}"></div>
-<div class="form-field"><label for="t-${esc(d.id)}">ประเภท</label>${typeSelect(`t-${d.id}`, d.type)}</div>` : ''}
+<div class="form-field"><label for="t-${esc(d.id)}">ประเภท</label>${typeSelect(`t-${esc(d.id)}`, d.type)}</div>` : ''}
 <div class="form-field"><label for="d-${esc(d.id)}">คำอธิบาย</label><textarea id="d-${esc(d.id)}" name="description">${esc(d.description || '')}</textarea></div>
 ${admin ? `<div class="form-field"><label for="u-${esc(d.id)}">ลิงก์ภายนอก (ถ้ามี)</label><input id="u-${esc(d.id)}" name="externalUrl" type="url" value="${esc(d.externalUrl || '')}" placeholder="https://"></div>` : ''}
 <div class="form-field"><span id="cl-${esc(d.id)}">รูปปก</span>

@@ -116,3 +116,17 @@ test('prMath edits only description of own department, no others listed', async 
   await page.getByRole('button', { name: 'บันทึก' }).click();
   await expect(page.locator('#page-notice')).toHaveText('บันทึกเรียบร้อยแล้ว');
 });
+
+test('admin creates staff: starts hidden, name required, shown only after ticking active', async ({ page }) => {
+  await login(page, 'admin');
+  await page.goto('/admin/staff.html');
+  await page.getByRole('button', { name: 'เพิ่มบุคลากร' }).click();
+  await expect(page).toHaveURL(/staff-edit\.html\?id=/);
+  await expect(page.locator('#f-active')).not.toBeChecked();
+  await page.getByRole('button', { name: 'บันทึก' }).click();
+  await expect(page.getByRole('alert').filter({ hasText: 'กรุณากรอกชื่อ-สกุล' })).toBeVisible();
+  await page.fill('#f-name', 'ครูใหม่ e2e');
+  await page.locator('#f-active').check();
+  await page.getByRole('button', { name: 'บันทึก' }).click();
+  await expect(page.locator('#page-notice')).toHaveText('บันทึกเรียบร้อยแล้ว');
+});

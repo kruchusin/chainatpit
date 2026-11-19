@@ -33,7 +33,11 @@ const nameOf = (d) => (depts.find((x) => x.id === d) || {}).name || d;
 
 // Departments the user may tick: admin = all; dept PR = their own. Held-but-foreign ones show as read-only chips;
 // a dept PR never sees departments that are neither owned nor held.
-const ownIds = admin ? depts.map((d) => d.id) : prDepts(profile);
+const mayOwn = admin ? depts.map((d) => d.id) : prDepts(profile);
+// Only ids that actually get a checkbox count as "own" for the merge (a failed dept load or a stale
+// prDepartments id must never drop a department from the record).
+const tickable = editable.includes('departmentIds') ? depts.filter((d) => mayOwn.includes(d.id)) : [];
+const ownIds = tickable.map((d) => d.id);
 
 const text = (k, label, type = 'text') => editable.includes(k)
   ? `<div class="form-field"><label for="f-${k}">${label}</label><input id="f-${k}" name="${k}" type="${type}" value="${esc(staff[k] || '')}"></div>` : '';
@@ -43,7 +47,6 @@ const area = (k, label) => editable.includes(k)
 function deptField() {
   const held = Array.isArray(staff.departmentIds) ? staff.departmentIds : [];
   const canTick = editable.includes('departmentIds');
-  const tickable = canTick ? depts.filter((d) => ownIds.includes(d.id)) : [];
   const chips = held.filter((d) => !tickable.some((t) => t.id === d));
   if (!tickable.length && !chips.length) return '';
   return `<fieldset class="form-field"><legend>ฝ่าย/กลุ่มสาระ</legend>
@@ -66,6 +69,7 @@ ${area('bio', 'ประวัติโดยย่อ')}
 ${area('education', 'วุฒิการศึกษา')}
 ${text('email', 'อีเมล', 'email')}
 ${deptField()}
+${editable.includes('active') ? `<div class="form-field"><label><input type="checkbox" id="f-active"${staff.active ? ' checked' : ''}> แสดงบนหน้าเว็บไซต์</label>${staff.active ? '' : '<p class="muted">ยังซ่อนอยู่ จะแสดงต่อเมื่อติ๊กช่องนี้และบันทึก</p>'}</div>` : ''}
 <div class="form-actions"><button type="submit" class="btn" id="save-btn">บันทึก</button>
 <a class="btn btn-secondary" href="/admin/staff.html">กลับไปรายการบุคลากร</a></div>
 </form>`;
@@ -94,6 +98,7 @@ form.addEventListener('submit', async (e) => {
     const formData = {
       prefix: val('prefix'), name: val('name'), position: val('position'),
       bio: val('bio'), education: val('education'), email: val('email'),
+      active: (document.getElementById('f-active') ? document.getElementById('f-active').checked : undefined),
       checkedDeptIds: Array.from(form.querySelectorAll('input[name="dept"]:checked')).map((c) => c.value),
     };
     // Validate first so a bad email never leaves an orphan upload behind.
