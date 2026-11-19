@@ -77,7 +77,7 @@ describe('news rules', () => {
     await assertFails(getDoc(doc(ctx('off'), 'news/nDraft')));
   });
 
-  it('prMath reads own-dept draft, async () => {
+  it('prMath reads own-dept draft', async () => {
     await assertSucceeds(getDoc(doc(ctx('prMath'), 'news/nDraft')));
   });
 
