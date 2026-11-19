@@ -31,6 +31,13 @@ export function canWriteNewsFor(p, departmentIds) {
   return ids.length > 0 && ids.every((id) => mine.includes(id));
 }
 
+// Saving existing news needs rights over BOTH the stored and the new departments
+// (mirrors canUpdateScoped). oldIds === null means a brand-new document.
+export function canSaveNews(p, oldIds, newIds) {
+  if (oldIds !== null && oldIds !== undefined && !canWriteNewsFor(p, oldIds)) return false;
+  return canWriteNewsFor(p, newIds);
+}
+
 function isStaffSelf(p, staff) {
   return active(p) && !!p.uid && !!staff && staff.uid === p.uid;
 }

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  isAdmin, isPrCentral, prDepts, canWriteNewsFor, canEditStaff,
+  isAdmin, isPrCentral, prDepts, canWriteNewsFor, canSaveNews, canEditStaff,
   editableStaffFields, canEditDepartment, menuFor,
 } from '../../public/assets/js/lib/permissions.js';
 
@@ -59,6 +59,21 @@ describe('permissions', () => {
     expect(editableStaffFields(both, s1)).toEqual([
       'prefix', 'name', 'position', 'photoUrl', 'bio', 'education', 'email',
       'departmentIds', 'order', 'active']);
+  });
+
+  it('canSaveNews checks both old and new departments', () => {
+    expect(canSaveNews(prMath, null, ['math'])).toBe(true);
+    expect(canSaveNews(prMath, null, [])).toBe(false);
+    expect(canSaveNews(prMath, ['math'], ['math'])).toBe(true);
+    expect(canSaveNews(prMath, ['sci'], ['math'])).toBe(false);
+    expect(canSaveNews(prMath, ['math', 'sci'], ['math'])).toBe(false);
+    expect(canSaveNews(prMath, [], ['math'])).toBe(false);
+    expect(canSaveNews(prMath, ['math'], ['math', 'sci'])).toBe(false);
+    expect(canSaveNews(prMulti, ['math'], ['math', 'academic'])).toBe(true);
+    expect(canSaveNews(admin, ['sci'], [])).toBe(true);
+    expect(canSaveNews(prc, [], ['sci'])).toBe(true);
+    expect(canSaveNews(off, null, ['math'])).toBe(false);
+    expect(canSaveNews(null, null, ['math'])).toBe(false);
   });
 
   it('canEditDepartment', () => {

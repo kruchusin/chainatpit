@@ -4,6 +4,8 @@ import { db, storage, firestoreSdk as f, storageSdk as st } from './firebase.js'
 import { resizeImage } from './lib/image-resize.js';
 import { cacheBust } from './lib/url.js';
 import { collectFiltered } from './lib/paginate.js';
+import { isAdmin, isPrCentral, prDepts } from './lib/permissions.js';
+import { NEWS_WRITE_KEYS } from './lib/news-payload.js';
 
 const withId = (d) => ({ id: d.id, ...d.data() });
 
@@ -102,4 +104,62 @@ export async function uploadImage(path, file) {
   await st.uploadBytes(r, blob, { contentType: 'image/jpeg', cacheControl: 'public, max-age=300' });
   // same path is reused, so the bare URL may not change: bust browser caches
   return cacheBust(await st.getDownloadURL(r));
+}
+
+// ---------- admin news helpers ----------
+
+// Editor list (drafts included), newest first. Returns {items, cursor} like listNews.
+// admin / pr_central: all news. Dept PR: array-contains-any over their departments (max 30), which the
+// list rule allows for any active dept PR; the page then hides items the user cannot edit.
+// index: news(createdAt DESC) automatic; news(departmentIds CONTAINS, createdAt DESC).
+export async function listNewsForEditor(profile, { pageSize = 20, after } = {}) {
+  const parts = [];
+  if (!(isAdmin(profile) || isPrCentral(profile))) {
+    const depts = prDepts(profile).slice(0, 30);
+    if (!depts.length) return { items: [], cursor: null };
+    parts.push(f.where('departmentIds', 'array-contains-any', depts));
+  }
+  parts.push(f.orderBy('createdAt', 'desc'));
+  if (after) parts.push(f.startAfter(after));
+  parts.push(f.limit(pageSize));
+  const snap = await f.getDocs(f.query(f.collection(db, 'news'), ...parts));
+  const last = snap.docs[snap.docs.length - 1];
+  return { items: snap.docs.map(withId), cursor: snap.docs.length === pageSize ? last : null };
+}
+
+// Drafts are not publicly readable, so this uses getDoc (rules: get is per-document scope).
+export async function getNewsForEditor(id) {
+  const snap = await f.getDoc(f.doc(db, 'news', id));
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+}
+
+// Creates an unpublished draft so Storage rules (news doc must exist) accept image uploads. Returns the id.
+// pinned:false is written explicitly: the public home query orders by pinned, which skips docs lacking the field.
+export async function createDraftNews(profile, departmentIds) {
+  const ref = f.doc(f.collection(db, 'news'));
+  await f.setDoc(ref, {
+    title: '', bodyHtml: '', coverUrl: '', images: [], departmentIds,
+    pinned: false, published: false, authorUid: profile.uid,
+    createdAt: f.serverTimestamp(), updatedAt: f.serverTimestamp(),
+  });
+  return ref.id;
+}
+
+// `data` must only hold allowed keys (see NEWS_WRITE_KEYS); updatedAt is always set here.
+export async function saveNews(id, data) {
+  const bad = Object.keys(data).filter((k) => !NEWS_WRITE_KEYS.includes(k));
+  if (bad.length) throw new Error(`saveNews: unexpected keys ${bad.join(', ')}`);
+  await f.updateDoc(f.doc(db, 'news', id), { ...data, updatedAt: f.serverTimestamp() });
+}
+
+// Storage files first (the storage rules need the doc to still exist), then the doc.
+// A failure while deleting files is logged but never blocks deleting the document.
+export async function deleteNews(id) {
+  try {
+    const { items } = await st.listAll(st.ref(storage, `news/${id}`));
+    await Promise.all(items.map((r) => st.deleteObject(r)));
+  } catch (e) {
+    console.error('deleteNews: could not delete storage files', e);
+  }
+  await f.deleteDoc(f.doc(db, 'news', id));
 }

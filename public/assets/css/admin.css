@@ -40,3 +40,23 @@
 @media (min-width: 900px) {
   .admin-cards { grid-template-columns: repeat(3, 1fr); }
 }
+
+/* News management */
+.admin-list { list-style: none; padding: 0; margin: 1rem 0; display: grid; gap: .6rem; }
+.admin-list li { display: flex; flex-wrap: wrap; gap: .5rem .9rem; align-items: center; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: .75rem 1rem; }
+.admin-list .item-title { flex: 1 1 14rem; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.admin-list .item-meta { font-size: .9rem; color: var(--color-muted, #555); }
+.badge-status { font-size: .8rem; padding: .1rem .55rem; border-radius: 999px; background: #e9edf2; }
+.badge-draft { background: #fff3cd; }
+.btn-secondary { background: #e9edf2; color: #1c2b45; }
+.btn-danger { background: #b3261e; color: #fff; }
+.check-grid { display: grid; gap: .25rem .75rem; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); }
+.check-grid label { display: flex; gap: .5rem; align-items: center; min-height: 44px; font-weight: 400; }
+.thumb-row { display: flex; flex-wrap: wrap; gap: .6rem; margin: .5rem 0; }
+.thumb { position: relative; width: 120px; }
+.thumb img { width: 120px; height: 90px; object-fit: cover; border-radius: 6px; border: 1px solid var(--color-border); display: block; }
+.cover-preview { max-width: 320px; width: 100%; height: auto; border-radius: 6px; border: 1px solid var(--color-border); }
+#editor { min-height: 14rem; background: #fff; }
+.admin-dialog { border: 0; border-radius: var(--radius); padding: 1.25rem; max-width: 28rem; width: calc(100% - 2rem); box-shadow: 0 10px 40px rgba(0,0,0,.3); }
+.admin-dialog::backdrop { background: rgba(0,0,0,.45); }
+.admin-dialog input { width: 100%; font: inherit; padding: .6rem .75rem; border: 1px solid var(--color-border); border-radius: 8px; }
