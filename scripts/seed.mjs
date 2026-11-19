@@ -139,8 +139,10 @@ async function seedTestUsers() {
     await db.doc(`users/${uid}`).set({ email, prDepartments: [], ...rest });
   }
   const staff = [
-    ['s1', { prefix: 'นาย', name: 'สมชาย ใจดี', position: 'ครู', departmentIds: ['math', 'academic'], uid: 't1', order: 1, active: true, phone: '0812345678' /* admin SDK bypasses rules: pages must still never show it */ }],
+    ['s1', { prefix: 'นาย', name: 'สมชาย ใจดี', position: 'ครู', departmentIds: ['math', 'academic'], uid: 't1', order: 1, active: true }],
     ['s2', { prefix: 'นางสาว', name: 'สมหญิง รักเรียน', position: 'ครู', departmentIds: ['sci'], uid: null, order: 2, active: true }],
+    // PDPA probe: carries a phone (admin SDK bypasses rules). Never edit via client: staffKeysOk would deny it.
+    ['s4', { prefix: 'นาย', name: 'ครูทดสอบเบอร์โทร', position: 'ครู', departmentIds: ['sci'], uid: null, order: 4, active: true, phone: '0812345678' }],
     ['s3', { prefix: 'นาย', name: 'ครูที่ลาออกแล้ว', position: 'ครู', departmentIds: ['math'], uid: null, order: 3, active: false }],
   ];
   for (const [id, data] of staff) await db.doc(`staff/${id}`).set(data);

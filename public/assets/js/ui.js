@@ -1,6 +1,7 @@
 // Shared layout (header / nav / footer) and shared renderers.
 import { getSettings, listDepartments } from './data.js';
 import { formatThaiDate } from './lib/thai-date.js';
+import { safeEmail } from './lib/email.js';
 
 const DEFAULT_NAME = 'โรงเรียนชัยนาทพิทยาคม';
 
@@ -39,7 +40,7 @@ export function renderError(el, e) {
 // Public staff card. Only explicit fields are rendered: phone numbers are never shown (PDPA).
 export function renderStaffCard(s) {
   const photo = safeUrl(s.photoUrl);
-  const email = /^[^\s@<>"']+@[^\s@<>"']+$/.test(s.email || '') ? s.email : '';
+  const email = safeEmail(s.email);
   const fullName = [s.prefix, s.name].filter(Boolean).join('');
   return `<article class="staff-card">
   <div class="staff-photo">${photo ? `<img src="${esc(photo)}" alt="${esc(fullName)}" loading="lazy" width="160" height="160">` : '<div class="staff-photo-placeholder" aria-hidden="true"></div>'}</div>

@@ -31,7 +31,8 @@ test('staff page never shows phone numbers', async ({ page }) => {
     const body = await page.locator('body').innerText();
     expect(body).not.toMatch(/0\d{8,9}/);
   }
-  expect(await page.content()).not.toContain('0812345678'); // seeded phone on s1
+  await expect(page.locator('.staff-card', { hasText: 'ครูทดสอบเบอร์โทร' })).toBeVisible(); // s4 (seeded with a phone) is listed under sci
+  expect(await page.content()).not.toContain('0812345678');
 });
 
 test('inactive staff hidden', async ({ page }) => {
