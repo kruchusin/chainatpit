@@ -272,7 +272,7 @@ export async function updateUserRole(uid, { role, prDepartments }) {
   await f.updateDoc(f.doc(db, 'users', uid), { role, prDepartments });
 }
 
-// Admin only. merge:true keeps fields this page does not manage (welcomeText, email...).
+// Admin only. merge:true keeps any fields this page does not manage.
 export async function saveSettings(data) {
   const bad = Object.keys(data).filter((k) => !SETTINGS_KEYS.includes(k));
   if (bad.length) throw new Error(`saveSettings: unexpected keys ${bad.join(', ')}`);

@@ -1,12 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   verifyFirebaseIdToken, AuthError, getAccessToken, decodeFields, encodeFields,
-  firestoreGet, firestorePatch, requireAdmin, identityToolkitBase, _resetCaches,
+  firestoreGet, firestorePatch, requireAdmin, identityToolkitBase, isEmulator, _resetCaches,
 } from '../../functions/_lib/google-auth.js';
 
 import { P, T, NOW, JWKS_URL, kp, jwk, sign, good, makeServiceAccountPem } from './helpers/auth-fixtures.js';
 
 const ISS = `https://securetoken.google.com/${P}`;
+const DEMO = 'demo-proj';
+const demoClaims = { aud: DEMO, iss: `https://securetoken.google.com/${DEMO}` };
 const b64u = (buf) => Buffer.from(buf).toString('base64url');
 const enc = (o) => b64u(new TextEncoder().encode(JSON.stringify(o)));
 const other = await crypto.subtle.generateKey(
@@ -158,7 +160,7 @@ describe('firestore REST', () => {
 describe('identityToolkitBase', () => {
   it('prod vs emulator', () => {
     expect(identityToolkitBase({})).toBe('https://identitytoolkit.googleapis.com/v1');
-    expect(identityToolkitBase({ FIREBASE_AUTH_EMULATOR_HOST: 'h:9099', FIRESTORE_EMULATOR_HOST: 'h:8080' }))
+    expect(identityToolkitBase({ FIREBASE_PROJECT_ID: 'demo-x', FIREBASE_AUTH_EMULATOR_HOST: 'h:9099', FIRESTORE_EMULATOR_HOST: 'h:8080' }))
       .toBe('http://h:9099/identitytoolkit.googleapis.com/v1');
     expect(identityToolkitBase({ FIREBASE_AUTH_EMULATOR_HOST: 'h:9099' })).toBe('https://identitytoolkit.googleapis.com/v1');
   });
@@ -207,16 +209,44 @@ describe('requireAdmin', () => {
     expect(r.status).toBe(403);
   });
   it('emulator mode: unsigned token accepted, owner token, emulator firestore', async () => {
-    const e = { FIREBASE_PROJECT_ID: P, FIREBASE_AUTH_EMULATOR_HOST: 'h:9099', FIRESTORE_EMULATOR_HOST: 'h:8080' };
+    const e = { FIREBASE_PROJECT_ID: DEMO, FIREBASE_AUTH_EMULATOR_HOST: 'h:9099', FIRESTORE_EMULATOR_HOST: 'h:8080' };
     const f = vi.fn(async () => new Response(JSON.stringify({ fields: encodeFields({ role: 'admin' }) }), { status: 200 }));
-    const out = await requireAdmin(req(unsigned(good())), e, { fetchFn: f, now: NOW });
+    const out = await requireAdmin(req(unsigned(good(demoClaims))), e, { fetchFn: f, now: NOW });
     expect(out).toEqual({ uid: 'u1', accessToken: 'owner' });
-    expect(f.mock.calls[0][0]).toBe(`http://h:8080/v1/projects/${P}/databases/(default)/documents/users/u1`);
+    expect(f.mock.calls[0][0]).toBe(`http://h:8080/v1/projects/${DEMO}/databases/(default)/documents/users/u1`);
   });
   it('emulator mode still checks aud and exp', async () => {
-    const e = { FIREBASE_PROJECT_ID: P, FIREBASE_AUTH_EMULATOR_HOST: 'h:9099', FIRESTORE_EMULATOR_HOST: 'h:8080' };
+    const e = { FIREBASE_PROJECT_ID: DEMO, FIREBASE_AUTH_EMULATOR_HOST: 'h:9099', FIRESTORE_EMULATOR_HOST: 'h:8080' };
     const f = vi.fn(async () => new Response('{}', { status: 200 }));
-    expect((await caught(requireAdmin(req(unsigned(good({ aud: 'z' }))), e, { fetchFn: f, now: NOW }))).status).toBe(401);
-    expect((await caught(requireAdmin(req(unsigned(good({ exp: T - 5 }))), e, { fetchFn: f, now: NOW }))).status).toBe(401);
+    expect((await caught(requireAdmin(req(unsigned(good({ ...demoClaims, aud: 'z' }))), e, { fetchFn: f, now: NOW }))).status).toBe(401);
+    expect((await caught(requireAdmin(req(unsigned(good({ ...demoClaims, exp: T - 5 }))), e, { fetchFn: f, now: NOW }))).status).toBe(401);
+  });
+  it('requests the cloud-platform scope (Firestore + Identity Toolkit) for the access token', async () => {
+    const f = router({ role: 'admin' });
+    await requireAdmin(req(await sign(good())), env(), { fetchFn: f, now: NOW });
+    const tokenCall = f.mock.calls.find((c) => String(c[0]) === 'https://oauth2.googleapis.com/token');
+    const assertion = new URLSearchParams(tokenCall[1].body).get('assertion');
+    const claims = JSON.parse(Buffer.from(assertion.split('.')[1], 'base64url'));
+    expect(claims.scope).toBe('https://www.googleapis.com/auth/cloud-platform');
+  });
+  it('emulator hosts with a non-demo project are NOT emulator mode: signature is checked', async () => {
+    const e = { ...env(), FIREBASE_AUTH_EMULATOR_HOST: 'h:9099', FIRESTORE_EMULATOR_HOST: 'h:8080' };
+    const r = await caught(requireAdmin(req(unsigned(good())), e, { fetchFn: router({ role: 'admin' }), now: NOW }));
+    expect(r.status).toBe(401);
+  });
+});
+
+describe('isEmulator', () => {
+  const hosts = { FIREBASE_AUTH_EMULATOR_HOST: 'h:9099', FIRESTORE_EMULATOR_HOST: 'h:8080' };
+  it('false for both hosts + non-demo project', () => {
+    expect(isEmulator({ ...hosts, FIREBASE_PROJECT_ID: 'chainatpit-a8c9c' })).toBe(false);
+  });
+  it('true for both hosts + demo- project', () => {
+    expect(isEmulator({ ...hosts, FIREBASE_PROJECT_ID: 'demo-chainatpit' })).toBe(true);
+  });
+  it('false when a host or the project id is missing', () => {
+    expect(isEmulator({ ...hosts })).toBe(false);
+    expect(isEmulator({ FIREBASE_PROJECT_ID: 'demo-x', FIRESTORE_EMULATOR_HOST: 'h:8080' })).toBe(false);
+    expect(isEmulator(undefined)).toBe(false);
   });
 });

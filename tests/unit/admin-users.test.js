@@ -3,6 +3,7 @@ import { onRequestPost, onRequest } from '../../functions/api/admin/users.js';
 import { encodeFields, _resetCaches } from '../../functions/_lib/google-auth.js';
 import { P, NOW, JWKS_URL, jwk, sign, good, makeServiceAccountPem } from './helpers/auth-fixtures.js';
 
+const DEMO = 'demo-proj';
 const TOKEN = 'https://oauth2.googleapis.com/token';
 const DOC = `https://firestore.googleapis.com/v1/projects/${P}/databases/(default)/documents`;
 const IDT = `https://identitytoolkit.googleapis.com/v1/projects/${P}`;
@@ -15,7 +16,7 @@ beforeEach(async () => {
 });
 
 // Router records every request; callerDoc is users/u1 (the admin caller).
-function setup({ callerDoc = { role: 'admin' }, idt = {}, failPatch, staffDoc = { name: 'x' }, existingUsers = {} } = {}) {
+function setup({ callerDoc = { role: 'admin' }, idt = {}, failPatch, failPatchStatus = 500, staffDoc = { name: 'x' }, existingUsers = {} } = {}) {
   const calls = [];
   const fetchFn = vi.fn(async (url, init = {}) => {
     url = String(url);
@@ -29,7 +30,7 @@ function setup({ callerDoc = { role: 'admin' }, idt = {}, failPatch, staffDoc = 
       return doc ? new Response(JSON.stringify({ fields: encodeFields(doc) }), { status: 200 }) : new Response('', { status: 404 });
     }
     if (url.startsWith(DOC)) {
-      if (failPatch && url.includes(failPatch)) return new Response('boom', { status: 500 });
+      if (failPatch && url.includes(failPatch)) return new Response('boom', { status: failPatchStatus });
       return new Response('{}', { status: 200 });
     }
     if (url.startsWith(IDT)) {
@@ -229,7 +230,7 @@ describe('setDisabled', () => {
     const tail = calls.slice(-2);
     expect(tail[0].url).toBe(`${IDT}/accounts:update`);
     expect(tail[0].body).toEqual({ localId: 'u2', disableUser: true });
-    expect(tail[1].url).toBe(`${DOC}/users/u2?updateMask.fieldPaths=disabled`);
+    expect(tail[1].url).toBe(`${DOC}/users/u2?updateMask.fieldPaths=disabled&currentDocument.exists=true`);
     expect(tail[1].body).toEqual({ fields: encodeFields({ disabled: true }) });
   });
   it('enable works (disabled:false)', async () => {
@@ -242,6 +243,23 @@ describe('setDisabled', () => {
     expect(res.status).toBe(400);
     expect(body.error).toEqual({ code: 'CANNOT_DISABLE_SELF', message: 'ไม่สามารถปิดบัญชีของตัวเองได้' });
     expect(idtCalls(calls)).toHaveLength(0);
+  });
+  it('users doc PATCH carries the exists precondition', async () => {
+    const { calls } = await call({ action: 'setDisabled', uid: 'u2', disabled: true });
+    expect(calls.at(-1).url).toBe(`${DOC}/users/u2?updateMask.fieldPaths=disabled&currentDocument.exists=true`);
+  });
+  for (const status of [404, 400]) {
+    it(`missing users doc (firestore ${status}) → 404 NOT_FOUND, not 500`, async () => {
+      const { res, body } = await call({ action: 'setDisabled', uid: 'u2', disabled: true }, { failPatch: '/users/u2', failPatchStatus: status });
+      expect(res.status).toBe(404);
+      expect(body.error).toEqual({ code: 'NOT_FOUND', message: 'ไม่พบผู้ใช้' });
+    });
+  }
+  it('other firestore failure → 500', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { res } = await call({ action: 'setDisabled', uid: 'u2', disabled: true }, { failPatch: '/users/u2', failPatchStatus: 500 });
+    expect(res.status).toBe(500);
+    spy.mockRestore();
   });
   it('non-boolean disabled → 400 INVALID_INPUT', async () => {
     expect((await call({ action: 'setDisabled', uid: 'u2', disabled: 'true' })).body.error.code).toBe('INVALID_INPUT');
@@ -267,7 +285,7 @@ describe('misc', () => {
     expect(res.headers.get('Allow')).toBe('POST');
   });
   it('emulator env: uses emulator IDT and firestore hosts', async () => {
-    const e = { FIREBASE_PROJECT_ID: P, FIREBASE_AUTH_EMULATOR_HOST: 'h:9099', FIRESTORE_EMULATOR_HOST: 'h:8080' };
+    const e = { FIREBASE_PROJECT_ID: DEMO, FIREBASE_AUTH_EMULATOR_HOST: 'h:9099', FIRESTORE_EMULATOR_HOST: 'h:8080' };
     const urls = [];
     const fetchFn = async (url, init = {}) => {
       urls.push(String(url));
@@ -275,15 +293,15 @@ describe('misc', () => {
       return new Response(JSON.stringify({ fields: encodeFields({ role: 'admin' }) }), { status: 200 });
     };
     const un = (o) => `${Buffer.from('{"alg":"none"}').toString('base64url')}.${Buffer.from(JSON.stringify(o)).toString('base64url')}.`;
-    const request = new Request('https://x/', { method: 'POST', headers: { Authorization: `Bearer ${un(good())}` }, body: JSON.stringify(create()) });
+    const request = new Request('https://x/', { method: 'POST', headers: { Authorization: `Bearer ${un(good({ aud: DEMO, iss: `https://securetoken.google.com/${DEMO}` }))}` }, body: JSON.stringify(create()) });
     const res = await onRequest({ request, env: e, data: { deps: { fetchFn, now: NOW } } });
     expect(res.status).toBe(201);
     expect(urls).toEqual([
-      `http://h:8080/v1/projects/${P}/databases/(default)/documents/users/u1`,
-      `http://h:8080/v1/projects/${P}/databases/(default)/documents/staff/s9`,
-      `http://h:9099/identitytoolkit.googleapis.com/v1/projects/${P}/accounts`,
-      `http://h:8080/v1/projects/${P}/databases/(default)/documents/users/n1`,
-      `http://h:8080/v1/projects/${P}/databases/(default)/documents/staff/s9?updateMask.fieldPaths=uid&currentDocument.exists=true`,
+      `http://h:8080/v1/projects/${DEMO}/databases/(default)/documents/users/u1`,
+      `http://h:8080/v1/projects/${DEMO}/databases/(default)/documents/staff/s9`,
+      `http://h:9099/identitytoolkit.googleapis.com/v1/projects/${DEMO}/accounts`,
+      `http://h:8080/v1/projects/${DEMO}/databases/(default)/documents/users/n1`,
+      `http://h:8080/v1/projects/${DEMO}/databases/(default)/documents/staff/s9?updateMask.fieldPaths=uid&currentDocument.exists=true`,
     ]);
   });
 });

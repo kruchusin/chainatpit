@@ -1,7 +1,5 @@
-// Home page banner strip markup (pure; esc/safeUrl mirror ui.js, which cannot be imported in Node).
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
-  (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const safeUrl = (u) => (/^(https?:\/\/|\/(?!\/))/i.test(String(u || '')) ? String(u) : '');
+// Home page banner strip markup (pure).
+import { esc, safeUrl } from './html.js';
 
 // banners: [{imageUrl, linkUrl}] -> html ('' when none renderable)
 export function renderBanners(banners, altText) {

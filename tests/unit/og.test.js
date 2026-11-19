@@ -105,9 +105,14 @@ describe('onRequestGet', () => {
     await onRequestGet({ request: new Request('https://school.example/news/a'), env: { ...env, FIRESTORE_EMULATOR_HOST: '127.0.0.1:8080' }, params: { id: 'a' } });
     expect(globalThis.fetch.mock.calls[0][0]).toBe(DOC('a'));
   });
-  it('og: both emulator vars → emulator URL without key', async () => {
+  it('og: both emulator vars but a non-demo project → production URL', async () => {
     mockDoc(200, { title: 't', bodyHtml: '', published: true });
     await onRequestGet({ request: new Request('https://school.example/news/a'), env: { ...env, FIRESTORE_EMULATOR_HOST: '127.0.0.1:8080', FIREBASE_AUTH_EMULATOR_HOST: '127.0.0.1:9099' }, params: { id: 'a' } });
-    expect(globalThis.fetch.mock.calls[0][0]).toBe(`http://127.0.0.1:8080/v1/projects/${PID}/databases/(default)/documents/news/a`);
+    expect(globalThis.fetch.mock.calls[0][0]).toBe(DOC('a'));
+  });
+  it('og: both emulator vars → emulator URL without key', async () => {
+    mockDoc(200, { title: 't', bodyHtml: '', published: true });
+    await onRequestGet({ request: new Request('https://school.example/news/a'), env: { ...env, FIREBASE_PROJECT_ID: 'demo-x', FIRESTORE_EMULATOR_HOST: '127.0.0.1:8080', FIREBASE_AUTH_EMULATOR_HOST: '127.0.0.1:9099' }, params: { id: 'a' } });
+    expect(globalThis.fetch.mock.calls[0][0]).toBe(`http://127.0.0.1:8080/v1/projects/demo-x/databases/(default)/documents/news/a`);
   });
 });

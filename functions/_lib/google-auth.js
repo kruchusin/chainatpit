@@ -33,7 +33,9 @@ const strToB64u = (s) => bytesToB64u(te.encode(s));
 const parseSeg = (seg) => JSON.parse(td.decode(b64uToBytes(seg)));
 
 export function isEmulator(env) {
-  return !!(env && env.FIREBASE_AUTH_EMULATOR_HOST && env.FIRESTORE_EMULATOR_HOST);
+  // Requires a demo- project id so stray emulator vars can never disable signature checks on a real project.
+  return !!(env && env.FIREBASE_AUTH_EMULATOR_HOST && env.FIRESTORE_EMULATOR_HOST
+    && String(env.FIREBASE_PROJECT_ID || '').startsWith('demo-'));
 }
 
 export function identityToolkitBase(env) {
@@ -216,7 +218,7 @@ export async function requireAdmin(request, env, deps = {}) {
   const projectId = env.FIREBASE_PROJECT_ID;
   const accessToken = emulator
     ? 'owner'
-    : await getAccessToken(JSON.parse(env.FIREBASE_SERVICE_ACCOUNT), ['https://www.googleapis.com/auth/datastore'], { fetchFn, now });
+    : await getAccessToken(JSON.parse(env.FIREBASE_SERVICE_ACCOUNT), ['https://www.googleapis.com/auth/cloud-platform'] /* Firestore + Identity Toolkit */, { fetchFn, now });
   const user = await firestoreGet(projectId, `users/${uid}`, accessToken, {
     fetchFn, firestoreHost: emulator ? env.FIRESTORE_EMULATOR_HOST : undefined,
   });

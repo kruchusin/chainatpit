@@ -43,7 +43,7 @@ service firebase.storage {
     // upload constraints: <= 2 MB and an image content type
     function validUpload() {
       return request.resource.size <= 2 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
+        && request.resource.contentType.matches('image/(jpeg|png|webp|gif)');
     }
 
     // ---------- permission per path ----------

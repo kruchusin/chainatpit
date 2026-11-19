@@ -86,6 +86,7 @@ java -version
    npx firebase deploy --only firestore,storage --project chainatpit-a8c9c
    ```
 
+   ครั้งแรกที่ deploy `storage` Firebase CLI จะถามว่าอนุญาตให้ Storage service agent อ่าน Firestore หรือไม่ (จำเป็นเพราะกฎ Storage ต้องอ่านข้อมูลข่าวใน Firestore) ให้ตอบ **Y**
    คำสั่งนี้ส่ง `firestore.rules`, `firestore.indexes.json` และ `storage.rules` ขึ้นไป (ดัชนีใช้เวลาสร้างสักครู่ดูสถานะได้ใน Firestore -> Indexes)
 7. **สร้าง service account key** (ใช้ในข้อ 6 และ 7 ด้านล่าง) Project settings -> Service accounts -> Generate new private key
    จะได้ไฟล์ `.json` หนึ่งไฟล์ เก็บไว้ในที่ปลอดภัยนอกโฟลเดอร์โปรเจกต์ เช่น `C:\keys\chainatpit.key.json`

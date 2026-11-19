@@ -2,14 +2,11 @@
 import { getSettings, listDepartments } from './data.js';
 import { formatThaiDate } from './lib/thai-date.js';
 import { safeEmail } from './lib/email.js';
+import { esc, safeUrl } from './lib/html.js';
 
 const DEFAULT_NAME = 'โรงเรียนชัยนาทพิทยาคม';
 
-export const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
-  (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-
-// Only allow http(s) / root-relative URLs in src/href built from data.
-export const safeUrl = (u) => (/^(https?:\/\/|\/(?!\/))/i.test(String(u || '')) ? String(u) : '');
+export { esc, safeUrl } from './lib/html.js';
 
 export function renderNewsCard(item) {
   const cover = safeUrl(item.coverUrl || (item.images && item.images[0]));

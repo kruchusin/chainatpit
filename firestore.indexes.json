@@ -73,6 +73,20 @@
           "order": "ASCENDING"
         },
         {
+          "fieldPath": "departmentIds",
+          "arrayConfig": "CONTAINS"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "staff",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "active",
+          "order": "ASCENDING"
+        },
+        {
           "fieldPath": "order",
           "order": "ASCENDING"
         }

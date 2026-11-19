@@ -92,7 +92,7 @@ const DOCUMENTS = [
 ];
 
 // Real project gets only the base keys; sample about/executives/facebook are emulator-only.
-const BASE_SETTINGS = Object.fromEntries(BASE_SETTINGS_KEYS.map((k) => [k, SETTINGS[k]]));
+const BASE_SETTINGS = { ...Object.fromEntries(BASE_SETTINGS_KEYS.map((k) => [k, SETTINGS[k]])), email: '' }; // no placeholder address on the real project
 
 async function seedDepartmentsAndSettings() {
   // Real project: never overwrite existing docs (admins may have edited them). Emulator: overwrite.
@@ -184,9 +184,14 @@ async function seedNews() {
 
 async function createFirstAdmin({ email, password }) {
   let user;
-  try { user = await auth.getUserByEmail(email); } catch { user = await auth.createUser({ email, password }); }
+  let existed = true;
+  try { user = await auth.getUserByEmail(email); } catch { existed = false; user = await auth.createUser({ email, password }); }
   await db.doc(`users/${user.uid}`).set({ email, role: 'admin', prDepartments: [], disabled: false });
   console.log(`สร้างแอดมินคนแรกแล้ว: ${email} (uid ${user.uid})`);
+  if (existed) {
+    console.log('หมายเหตุ: อีเมลนี้มีบัญชีอยู่แล้ว จึง *ไม่ได้ตั้งรหัสผ่านตามที่ระบุในคำสั่ง* รหัสผ่านเดิมยังใช้อยู่');
+    console.log('หากต้องการตั้งรหัสผ่านใหม่ ให้ใช้หน้า "ผู้ใช้และสิทธิ์" ในระบบหลังบ้าน หรือ Firebase console -> Authentication -> Users -> เมนู ... -> Reset password');
+  }
 }
 
 if (emulator) {

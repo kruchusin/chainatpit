@@ -107,7 +107,13 @@ export async function onRequestPost(context) {
       if (!isId(b.uid) || typeof b.disabled !== 'boolean') return invalid();
       if (b.uid === callerUid && b.disabled) return errorJson(400, 'CANNOT_DISABLE_SELF', 'ไม่สามารถปิดบัญชีของตัวเองได้');
       await idt(env, accessToken, fetchFn, '/accounts:update', { localId: b.uid, disableUser: b.disabled });
-      await firestorePatch(pid, `users/${b.uid}`, { disabled: b.disabled }, accessToken, { ...fsOpts, updateMask: ['disabled'] });
+      try {
+        await firestorePatch(pid, `users/${b.uid}`, { disabled: b.disabled }, accessToken, { ...fsOpts, updateMask: ['disabled'], mustExist: true });
+      } catch (e) {
+        // failed currentDocument.exists precondition surfaces as 404 NOT_FOUND (or 400 FAILED_PRECONDITION)
+        if (e && (e.status === 404 || e.status === 400)) throw errorJson(404, 'NOT_FOUND', 'ไม่พบผู้ใช้');
+        throw e;
+      }
       return json({ ok: true });
     }
 

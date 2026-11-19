@@ -44,6 +44,8 @@ box.innerHTML = `<form id="settings-form" novalidate>
 <button type="button" class="btn btn-secondary" id="add-banner">เพิ่มแบนเนอร์</button></fieldset>
 <div class="form-field"><label for="s-address">ที่อยู่</label><textarea id="s-address" name="address">${esc(settings.address || '')}</textarea></div>
 <div class="form-field"><label for="s-phone">เบอร์โทรศัพท์โรงเรียน</label><input id="s-phone" name="phone" type="text" value="${esc(settings.phone || '')}"></div>
+<div class="form-field"><label for="s-email">อีเมลโรงเรียน</label><input id="s-email" name="email" type="email" value="${esc(settings.email || '')}"></div>
+<div class="form-field"><label for="s-welcome">ข้อความต้อนรับหน้าแรก</label><textarea id="s-welcome" name="welcomeText" maxlength="300">${esc(settings.welcomeText || '')}</textarea></div>
 <div class="form-field"><label for="s-fb">ลิงก์ Facebook</label><input id="s-fb" name="facebookUrl" type="url" placeholder="https://" value="${esc(settings.facebookUrl || '')}"></div>
 <div class="form-field"><span id="about-label">ข้อมูลสถานศึกษา</span><div id="about-editor" aria-labelledby="about-label"></div></div>
 <fieldset class="form-field"><legend>คณะผู้บริหาร</legend><div id="exec-rows"></div>
@@ -103,7 +105,7 @@ document.getElementById('settings-form').addEventListener('submit', async (e) =>
   const btn = document.getElementById('s-save');
   const el = e.target.elements;
   // validate text first so nothing is uploaded for a form that cannot be saved
-  const text = { schoolName: el.schoolName.value, facebookUrl: el.facebookUrl.value, banners: banners.map((b) => ({ imageUrl: b.imageUrl || 'pending', linkUrl: b.linkUrl })) };
+  const text = { schoolName: el.schoolName.value, email: el.email.value, welcomeText: el.welcomeText.value, facebookUrl: el.facebookUrl.value, banners: banners.map((b) => ({ imageUrl: b.imageUrl || 'pending', linkUrl: b.linkUrl })) };
   const pre = buildSettingsPayload({ form: { ...text, executives: [] }, sanitize });
   if (!pre.error && execs.some((x) => x.file && !x.name.trim())) { errEl.textContent = 'กรุณากรอกชื่อผู้บริหารที่เลือกรูปไว้ หรือลบรายการนั้นออก'; return; }
   if (pre.error) { errEl.textContent = pre.error; return; }
@@ -113,6 +115,7 @@ document.getElementById('settings-form').addEventListener('submit', async (e) =>
     const { data, error } = buildSettingsPayload({
       form: {
         schoolName: el.schoolName.value, logoUrl, banners, address: el.address.value, phone: el.phone.value,
+        email: el.email.value, welcomeText: el.welcomeText.value,
         facebookUrl: el.facebookUrl.value, aboutHtml: quill.getSemanticHTML(), executives: execs,
       },
       sanitize,
