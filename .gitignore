@@ -2,3 +2,6 @@ node_modules
 .wrangler
 *.key.json
 migration/out/
+.dev.vars
+.env*
+*-debug.log
