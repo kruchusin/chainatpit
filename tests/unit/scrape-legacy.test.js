@@ -79,31 +79,53 @@ describe('groupNewsBlocks', () => {
 });
 
 describe('groupStaff', () => {
+  const card = (...k) => E('div', ...k);
+  const img = (n) => E('div', E('img', { src: `https://lh3.googleusercontent.com/${n}` }));
   const dom = root(
     E('h2', 'กลุ่มสาระการเรียนรู้คณิตศาสตร์'),
-    E('div', E('img', { src: 'https://lh3.googleusercontent.com/p1' })),
-    E('p', 'นายสมชาย ใจดี'),
-    E('p', 'ครู ชำนาญการพิเศษ'),
-    E('p', 'โทร 081-234-5678'),
-    E('p', 'นางสาวสมศรี รักเรียน'),
-    E('div', E('img', { src: 'https://lh3.googleusercontent.com/p2' })),
-    E('p', 'ครู'),
-    E('p', 'ว่าที่ร้อยตรีสมปอง ดีมาก'),
-    E('p', 'พนักงานราชการ'),
+    E('div',
+      card(img('p1'), E('p', 'นายสมชาย ใจดี'), E('p', 'ครู ชำนาญการพิเศษ'), E('p', 'โทร 081-234-5678')),
+      card(E('p', 'นางสาวสมศรี รักเรียน'), img('p2'), E('p', 'ครู')),
+      card(E('p', 'ว่าที่ร้อยตรีสมปอง ดีมาก'), E('p', 'พนักงานราชการ'))),
   );
   const people = groupStaff(collectEvents(dom));
-  it('pairs prefix names with positions and photos, in either image order', () => {
+  it('pairs names, positions and photos within each card (image before or after the name)', () => {
     expect(people).toEqual([
       { prefix: 'นาย', name: 'สมชาย ใจดี', position: 'ครู ชำนาญการพิเศษ', photoUrl: 'https://lh3.googleusercontent.com/p1' },
       { prefix: 'นางสาว', name: 'สมศรี รักเรียน', position: 'ครู', photoUrl: 'https://lh3.googleusercontent.com/p2' },
       { prefix: 'ว่าที่ร้อยตรี', name: 'สมปอง ดีมาก', position: 'พนักงานราชการ', photoUrl: '' },
     ]);
   });
+  it('regression: photo-less A does not steal B\'s photo that precedes B\'s name; C stays aligned', () => {
+    const d = root(E('div',
+      card(E('p', 'นายเอ ไม่มีรูป'), E('p', 'ครู')),
+      card(img('pB'), E('p', 'นายบี มีรูป'), E('p', 'ครู')),
+      card(E('p', 'นายซี ไม่มีรูป'), E('p', 'ครู'))));
+    expect(groupStaff(collectEvents(d)).map((p) => [p.name, p.photoUrl])).toEqual([
+      ['เอ ไม่มีรูป', ''], ['บี มีรูป', 'https://lh3.googleusercontent.com/pB'], ['ซี ไม่มีรูป', ''],
+    ]);
+  });
+  it('flat layout without cards: no photos are guessed', () => {
+    const d = root(img('x'), E('p', 'นายเอ ก'), img('y'), E('p', 'นายบี ข'));
+    expect(groupStaff(collectEvents(d)).map((p) => p.photoUrl)).toEqual(['', '']);
+  });
+  it('a single person still gets the photo in their card', () => {
+    const d = root(E('div', card(img('s'), E('p', 'นายเอ ก'))));
+    expect(groupStaff(collectEvents(d))[0].photoUrl).toBe('https://lh3.googleusercontent.com/s');
+  });
   it('never includes phone numbers', () => {
     expect(JSON.stringify(people)).not.toMatch(/081|โทร/);
   });
   it('parseStaffPage(html, deptKey) works through an injected parser', () => {
     expect(parseStaffPage('<html>', 'math', () => dom)).toHaveLength(3);
+  });
+});
+
+describe('news date paragraph', () => {
+  it('a date paragraph in Thai digits is stripped from the body', () => {
+    const b = groupNewsBlocks(collectEvents(root(E('h2', 'ข่าว'), E('p', '๑๙ พ.ย. ๒๕๖๙'), E('p', 'เนื้อหา'))));
+    expect(b[0].bodyHtml).toBe('<p>เนื้อหา</p>');
+    expect(b[0].dateText).toBe('19 พ.ย. 2569');
   });
 });
 

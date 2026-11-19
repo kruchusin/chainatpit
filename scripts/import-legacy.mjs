@@ -15,6 +15,7 @@ import { createSanitizer } from '../public/assets/js/lib/sanitize.js';
 import { newsId, staffId, storageDownloadUrl } from '../migration/lib/ids.mjs';
 import { buildNewsDoc, buildStaffDoc, findPhones } from '../migration/lib/docs.mjs';
 import { findThaiDate } from '../migration/lib/thai-date.mjs';
+import { uploadAll } from '../migration/lib/uploads.mjs';
 import { bigImageUrl, toJpegWithinLimits } from '../migration/lib/image.mjs';
 
 const REAL_PROJECT = 'chainatpit-a8c9c';
@@ -81,10 +82,16 @@ async function uploadImage(srcUrl, path) {
 }
 
 const mode = commit ? 'COMMIT' : 'DRY-RUN';
-const counts = { written: 0, skipped: 0, failedImages: 0 };
+const counts = { written: 0, skipped: 0 };
+const failed = []; // docs not written because an image failed
 
 async function exists(col, id) {
   return db ? (await db.collection(col).doc(id).get()).exists : false;
+}
+
+function reportFailure(col, id, label, errors) {
+  failed.push(`${col}/${id} ${label}`);
+  console.warn(`  ไม่เขียน ${col}/${id} ${label}: รูปล้มเหลว ${errors.map((e) => `[${e.index + 1}] ${e.message}`).join('; ')}`);
 }
 
 async function importNews() {
@@ -104,12 +111,9 @@ async function importNews() {
     if (phones.length) console.warn(`  คำเตือน: เนื้อหามีเบอร์โทร ${phones.join(', ')} - ตรวจสอบก่อนเผยแพร่`);
     console.log(`[${mode}] news/${id} ${title} | ${probe.createdAt.toISOString().slice(0, 10)}${dated} | รูป ${(item.images || []).length}`);
     if (!commit) continue;
-    const imageUrls = [];
-    for (const [i, src] of (item.images || []).entries()) {
-      try { imageUrls.push(await uploadImage(src, `news/${id}/legacy-${i + 1}.jpg`)); } catch (e) {
-        counts.failedImages++; console.warn(`  รูปที่ ${i + 1} ล้มเหลว: ${e.message}`);
-      }
-    }
+    const up = await uploadAll(item.images || [], (src, i) => uploadImage(src, `news/${id}/legacy-${i + 1}.jpg`));
+    if (!up.shouldWrite) { reportFailure('news', id, title, up.errors); continue; }
+    const imageUrls = up.urls;
     await db.collection('news').doc(id).set(buildNewsDoc({ item, year, bodyHtml, imageUrls, now }));
     counts.written++;
   }
@@ -126,12 +130,9 @@ async function importStaff() {
     }
     console.log(`[${mode}] staff/${id} ${person.prefix || ''}${name} | ${person.position || '-'} | รูป ${person.photoUrl ? 1 : 0}`);
     if (!commit) continue;
-    let photoUrl = '';
-    if (person.photoUrl) {
-      try { photoUrl = await uploadImage(person.photoUrl, `staff/${id}/photo.jpg`); } catch (e) {
-        counts.failedImages++; console.warn(`  รูปล้มเหลว: ${e.message}`);
-      }
-    }
+    const up = await uploadAll(person.photoUrl ? [person.photoUrl] : [], (src) => uploadImage(src, `staff/${id}/photo.jpg`));
+    if (!up.shouldWrite) { reportFailure('staff', id, name, up.errors); continue; }
+    const photoUrl = up.urls[0] || '';
     await db.collection('staff').doc(id).set(buildStaffDoc({ person: { ...person, name }, dept, order: i + 1, photoUrl }));
     counts.written++;
   }
@@ -139,5 +140,11 @@ async function importStaff() {
 
 if (newsFile) await importNews();
 if (staffFile) await importStaff();
-console.log(`${mode} เสร็จสิ้น: เขียน ${counts.written}, ข้าม ${counts.skipped}, รูปล้มเหลว ${counts.failedImages}`);
+console.log(`${mode} เสร็จสิ้น: เขียน ${counts.written}, ข้าม ${counts.skipped}, ไม่เขียนเพราะรูปล้มเหลว ${failed.length}`);
+if (failed.length) {
+  console.warn('รายการที่ไม่ได้เขียน:');
+  failed.forEach((f) => console.warn(`  - ${f}`));
+  console.warn('รันใหม่อีกครั้งเพื่อลองนำเข้ารายการเหล่านี้');
+  process.exitCode = 1;
+}
 if (!commit) console.log('นี่คือ dry-run ยังไม่มีการเขียนข้อมูล เพิ่ม --commit เพื่อเขียนจริง');

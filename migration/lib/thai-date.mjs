@@ -29,9 +29,12 @@ function build(day, month, year) {
   return back === iso ? date : null;
 }
 
+// the form findThaiDate() matches against (ASCII digits, NFC); its .text is a substring of this
+export const normalizeThaiText = (text) => toAsciiDigits(String(text ?? '')).normalize('NFC');
+
 export function findThaiDate(text) {
   if (typeof text !== 'string' || !text) return null;
-  const s = toAsciiDigits(text).normalize('NFC');
+  const s = normalizeThaiText(text);
   const candidates = [];
   const t = TEXT_RE.exec(s);
   if (t) {

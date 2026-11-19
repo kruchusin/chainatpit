@@ -11,7 +11,7 @@ export const findPhones = (text) => String(text ?? '').match(PHONE_RE) || [];
 export function buildNewsDoc({ item, year, bodyHtml, imageUrls, now }) {
   const found = findThaiDate(item.dateText || '');
   return {
-    title: item.title,
+    title: String(item.title ?? '').trim(),
     bodyHtml,
     coverUrl: imageUrls[0] || '',
     images: [...imageUrls],

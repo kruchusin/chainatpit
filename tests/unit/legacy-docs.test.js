@@ -27,6 +27,13 @@ describe('buildNewsDoc', () => {
   });
 });
 
+describe('buildNewsDoc title', () => {
+  it('stores the trimmed title (matches the id)', () => {
+    const d = buildNewsDoc({ item: { title: '  ข่าว  ', dateText: '' }, year: 2569, bodyHtml: '', imageUrls: [], now: NOW });
+    expect(d.title).toBe('ข่าว');
+  });
+});
+
 describe('buildStaffDoc', () => {
   it('has exactly the allowed keys and no phone', () => {
     const d = buildStaffDoc({ person: { prefix: 'นาย', name: 'ก ข', position: 'ครู', photoUrl: 'x', phone: '081' },
