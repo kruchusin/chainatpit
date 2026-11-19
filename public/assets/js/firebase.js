@@ -6,12 +6,12 @@ const isLocal = ['localhost', '127.0.0.1'].includes(location.hostname);
 // ค่า web config เป็นข้อมูลสาธารณะ (ไม่ใช่ความลับ) แต่ยังไม่มีค่าจริง
 // ให้ไปคัดลอกจาก Firebase console → Project settings → General → Your apps (Web app)
 const config = {
-  apiKey: 'REPLACE_WITH_WEB_API_KEY',               // Firebase console → Project settings → Web API Key
+  apiKey: 'AIzaSyCfOuuV42UIiwqEOEag0djuMmX7FFEDfi8',               // Firebase console → Project settings → Web API Key
   authDomain: 'chainatpit-a8c9c.firebaseapp.com',
   projectId: 'chainatpit-a8c9c',
   storageBucket: 'chainatpit-a8c9c.firebasestorage.app',
-  messagingSenderId: 'REPLACE_WITH_MESSAGING_SENDER_ID', // Firebase console → Project settings → Cloud Messaging
-  appId: 'REPLACE_WITH_APP_ID',                      // Firebase console → Project settings → Your apps
+  messagingSenderId: '44215680838', // Firebase console → Project settings → Cloud Messaging
+  appId: '1:44215680838:web:2a10283f4f1f3900fd2f47',                      // Firebase console → Project settings → Your apps
 };
 // Emulators run under this project id (see package.json test scripts)
 if (isLocal) { config.projectId = 'demo-chainatpit'; config.apiKey = 'demo-key'; }
