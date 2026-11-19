@@ -58,7 +58,7 @@ java -version
 เข้า https://console.firebase.google.com แล้วเลือกโปรเจกต์ `chainatpit-a8c9c`
 
 1. **สร้าง Cloud Firestore** เมนู Build -> Firestore Database -> Create database
-   เลือก location **`asia-southeast1` (สิงคโปร์)** แล้วเริ่มด้วย Production mode (กฎจริงจะถูก deploy ในข้อ 2.7 ด้านล่าง)
+   เลือก location **`asia-southeast1` (สิงคโปร์)** แล้วเริ่มด้วย Production mode (กฎจริงจะถูก deploy ในข้อ 2.6 ด้านล่าง)
    **อย่าไปใช้ Realtime Database ที่มีอยู่เดิม**
 2. **เปิดล็อกอินด้วยอีเมล** เมนู Build -> Authentication -> Get started -> Sign-in method -> Email/Password -> Enable
 3. **อัปเกรดเป็นแพ็กเกจ Blaze** (จ่ายตามการใช้งาน จำเป็นเพราะที่เก็บรูป Storage รุ่นใหม่ต้องใช้ Blaze)
@@ -78,9 +78,7 @@ java -version
 
    ค่า `authDomain`, `projectId`, `storageBucket` ถูกใส่ไว้ให้แล้ว ให้ตรวจว่าตรงกับของคุณ
    (ค่าเหล่านี้ไม่ใช่ความลับ เป็นข้อมูลสาธารณะที่อยู่ในหน้าเว็บอยู่แล้ว ความปลอดภัยอยู่ที่กฎ Firestore/Storage)
-6. **ฝั่งความปลอดภัยของ API key** (แนะนำ) ที่ Google Cloud Console -> APIs & Services -> Credentials เปิด Web API key
-   แล้วจำกัด HTTP referrers เป็น `www.chainatpit.ac.th/*` และ `*.pages.dev/*` (และ `localhost` ถ้าจะลองบนเครื่อง)
-7. **Deploy กฎและดัชนี** เปิด PowerShell ในโฟลเดอร์โปรเจกต์
+6. **Deploy กฎและดัชนี** เปิด PowerShell ในโฟลเดอร์โปรเจกต์
 
    ```
    npm install
@@ -89,7 +87,7 @@ java -version
    ```
 
    คำสั่งนี้ส่ง `firestore.rules`, `firestore.indexes.json` และ `storage.rules` ขึ้นไป (ดัชนีใช้เวลาสร้างสักครู่ดูสถานะได้ใน Firestore -> Indexes)
-8. **สร้าง service account key** (ใช้ในข้อ 6 และ 7) Project settings -> Service accounts -> Generate new private key
+7. **สร้าง service account key** (ใช้ในข้อ 6 และ 7 ด้านล่าง) Project settings -> Service accounts -> Generate new private key
    จะได้ไฟล์ `.json` หนึ่งไฟล์ เก็บไว้ในที่ปลอดภัยนอกโฟลเดอร์โปรเจกต์ เช่น `C:\keys\chainatpit-key.json`
 
    > **คำเตือน: ห้าม commit หรืออัปโหลดไฟล์ key นี้ขึ้น GitHub เด็ดขาด** ใครได้ไฟล์นี้ไปจะเข้าถึงฐานข้อมูลทั้งหมดได้
@@ -178,7 +176,7 @@ npm test
 **ห้ามอัปโหลดสิ่งเหล่านี้**
 
 - `node_modules/` (โฟลเดอร์ใหญ่ ไม่จำเป็น ติดตั้งใหม่ได้เสมอ)
-- ไฟล์ key JSON ของ service account (ทุกไฟล์ที่ลงท้าย `.key.json` หรือไฟล์ที่ดาวน์โหลดจากข้อ 2.8)
+- ไฟล์ key JSON ของ service account (ทุกไฟล์ที่ลงท้าย `.key.json` หรือไฟล์ที่ดาวน์โหลดจากข้อ 2.7)
 - `.dev.vars` (ไฟล์ตั้งค่าบนเครื่อง)
 - `migration/out/` (ข้อมูลที่ scrape มา)
 
@@ -211,7 +209,7 @@ npm test
 
 ## 7. สร้างแอดมินคนแรก และใส่ข้อมูลเริ่มต้น
 
-ต้องทำบนเครื่องของคุณ โดยชี้ไปที่ไฟล์ key จากข้อ 2.8 (เปลี่ยนที่อยู่ไฟล์ให้ตรงกับของคุณ)
+ต้องทำบนเครื่องของคุณ โดยชี้ไปที่ไฟล์ key จากข้อ 2.7 (เปลี่ยนที่อยู่ไฟล์ให้ตรงกับของคุณ)
 
 **Command Prompt (cmd)**
 
@@ -330,7 +328,7 @@ Firebase console -> Authentication -> Settings -> Authorized domains -> Add doma
 | Functions ตอบ **401** (`UNAUTHENTICATED`) | ไม่ได้ล็อกอินหรือ token หมดอายุ/ผิด ให้ออกจากระบบแล้วเข้าใหม่ และตรวจว่า `FIREBASE_PROJECT_ID` ใน Pages ตรงกับ `chainatpit-a8c9c` |
 | Functions ตอบ **403** (`FORBIDDEN`) | บัญชีนี้ไม่ใช่แอดมิน หรือถูกปิดใช้งาน (การจัดการผู้ใช้ทำได้เฉพาะแอดมิน) |
 | Functions ตอบ **500** หรือสร้างบัญชีไม่ได้ | ตรวจ `FIREBASE_SERVICE_ACCOUNT` ใน Pages: ต้องเป็น JSON ทั้งไฟล์ครบทุกบรรทัด ไม่ใช่เฉพาะบางส่วน และได้กด Retry deployment หลังแก้แล้ว |
-| หน้าข่าวแชร์ Facebook ไม่ขึ้นรูป/ชื่อ | ตรวจ `FIREBASE_API_KEY` ใน Pages และว่า API key ไม่ได้จำกัด referrer จนเรียกจากเซิร์ฟเวอร์ไม่ได้ แล้วกด Scrape Again ใน Sharing Debugger |
+| หน้าข่าวแชร์ Facebook ไม่ขึ้นรูป/ชื่อ | ตรวจ `FIREBASE_API_KEY` ใน Pages และว่า API key ไม่ได้ถูกจำกัด HTTP referrer (เซิร์ฟเวอร์ Cloudflare เรียกโดยไม่มี referrer จึงจะถูกปฏิเสธ) แล้วกด Scrape Again ใน Sharing Debugger |
 | ล็อกอินไม่ได้บนโดเมนจริง | ยังไม่ได้เพิ่ม Authorized domains (ข้อ 8) |
 | เว็บขึ้นแต่ข้อมูลว่าง/ล็อกอินไม่ได้เลย | ยังไม่ได้แทน placeholder `REPLACE_WITH_...` ใน `public/assets/js/firebase.js` (ข้อ 2.5) |
 | `seed.mjs` ปฏิเสธการทำงาน | ต้องใส่ `--yes` และตั้ง `GOOGLE_APPLICATION_CREDENTIALS` ให้ถูก (ข้อ 7) |
