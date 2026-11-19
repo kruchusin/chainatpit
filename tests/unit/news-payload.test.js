@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
-  buildNewsPayload, youtubeEmbedUrl, stripDataImages, NEWS_WRITE_KEYS,
+  buildNewsPayload, youtubeEmbedUrl, NEWS_WRITE_KEYS,
 } from '../../public/assets/js/lib/news-payload.js';
 
 const admin = { uid: 'admin', role: 'admin', prDepartments: [], disabled: false };
@@ -31,20 +31,12 @@ describe('youtubeEmbedUrl', () => {
   });
 });
 
-describe('stripDataImages', () => {
-  it('removes data: images only', () => {
-    expect(stripDataImages('<p>a</p><img src="data:image/png;base64,AAA" alt="">')).toBe('<p>a</p>');
-    expect(stripDataImages('<img alt="" src=" DATA:image/png;base64,AAA">b')).toBe('b');
-    expect(stripDataImages('<img src="https://x/y.jpg" alt="">')).toBe('<img src="https://x/y.jpg" alt="">');
-  });
-});
-
 describe('buildNewsPayload', () => {
-  it('sanitizes the body, strips data images, trims title', () => {
+  it('sanitizes the body and trims title', () => {
     const spy = vi.fn(sanitize);
     const { data } = buildNewsPayload({
       profile: admin, existing: null, sanitize: spy,
-      form: form({ bodyHtml: '<p>ok</p><script>x()</script><img src="data:image/png;base64,AA">' }),
+      form: form({ bodyHtml: '<p>ok</p><script>x()</script>' }),
     });
     expect(spy).toHaveBeenCalled();
     expect(data.bodyHtml).toBe('<p>ok</p>');

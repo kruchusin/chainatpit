@@ -48,24 +48,36 @@ async function onDelete(n, li) {
   if (!ok) return;
   try {
     await deleteNews(n.id);
-    li.remove();
+    li.remove(); rows--;
     noticeEl.textContent = 'ลบข่าวเรียบร้อยแล้ว';
-    if (!listEl.children.length) listEl.innerHTML = '<li class="muted">ยังไม่มีข่าว</li>';
+    if (!rows) listEl.innerHTML = '<li class="muted">ยังไม่มีข่าว</li>';
   } catch (e) {
     console.error(e);
     errEl.textContent = e && e.code === 'permission-denied' ? 'ไม่มีสิทธิ์ลบข่าวนี้' : 'ลบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง';
   }
 }
 
+let rows = 0;
+const MAX_EXTRA_FETCHES = 5;
+
 async function load() {
   moreBtn.disabled = true;
   try {
-    const { items, cursor: next } = await listNewsForEditor(profile, { pageSize: PAGE, after: cursor });
-    cursor = next;
-    if (first) { listEl.innerHTML = ''; first = false; }
-    // UI filter (rules still decide): hide items this user may not edit/delete
-    for (const n of items) if (canWriteNewsFor(profile, n.departmentIds)) listEl.appendChild(row(n));
-    if (!listEl.children.length) listEl.innerHTML = '<li class="muted">ยังไม่มีข่าว</li>';
+    let target = rows + PAGE;
+    for (let extra = 0; ; extra++) {
+      const { items, cursor: next } = await listNewsForEditor(profile, { pageSize: PAGE, after: cursor });
+      cursor = next;
+      if (first) { listEl.innerHTML = ''; first = false; }
+      // UI filter (rules still decide): hide items this user may not edit/delete
+      for (const n of items) {
+        if (!canWriteNewsFor(profile, n.departmentIds)) continue;
+        if (!rows) listEl.innerHTML = ''; // clear any stale placeholder
+        listEl.appendChild(row(n)); rows++;
+      }
+      // filtered page came up short: fetch more (bounded) so the user is not left with a near-empty list
+      if (!cursor || rows >= target || extra >= MAX_EXTRA_FETCHES) break;
+    }
+    if (!rows) listEl.innerHTML = '<li class="muted">ยังไม่มีข่าว</li>';
     moreBtn.hidden = !cursor;
   } catch (e) {
     console.error(e);

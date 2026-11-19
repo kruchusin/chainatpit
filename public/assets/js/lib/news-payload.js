@@ -26,11 +26,6 @@ export function youtubeEmbedUrl(input) {
   return id && YT_ID.test(id) ? `https://www.youtube.com/embed/${id}` : null;
 }
 
-// DOMPurify keeps data: URIs on <img>; images must be uploaded, never embedded in the document.
-export function stripDataImages(html) {
-  return String(html ?? '').replace(/<img\b[^>]*\bsrc\s*=\s*["']?\s*data:[^>]*>/gi, '');
-}
-
 // -> { data } ready for saveNews, or { error } (Thai message). `sanitize` is createSanitizer(DOMPurify).
 // pinned is only ever emitted for admin / pr_central; a dept PR never sends it (new or existing).
 export function buildNewsPayload({ profile, form, existing, sanitize }) {
@@ -44,7 +39,7 @@ export function buildNewsPayload({ profile, form, existing, sanitize }) {
   if (!canSaveNews(profile, oldIds, departmentIds)) return { error: MSG_DENIED };
   const data = {
     title,
-    bodyHtml: stripDataImages(sanitize(form.bodyHtml ?? '')),
+    bodyHtml: sanitize(form.bodyHtml ?? ''), // sanitizer also drops data:/relative <img>
     coverUrl: form.coverUrl || '',
     images: Array.isArray(form.images) ? [...form.images] : [],
     departmentIds,

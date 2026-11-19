@@ -11,7 +11,16 @@ describe('sanitize', () => {
     expect(s('<p onclick="x()">a</p><script>alert(1)</script>')).toBe('<p>a</p>');
   });
   it('strips onerror', () => {
-    expect(s('<img src=x onerror=alert(1)>')).toBe('<img src="x">');
+    // relative/data image sources are removed — only http(s) images allowed
+    expect(s('<img src=x onerror=alert(1)>')).toBe('');
+    expect(s('<img src="https://x/y.jpg" onerror="alert(1)">')).toBe('<img src="https://x/y.jpg">');
+  });
+  it('removes data: images even with > inside another attribute', () => {
+    expect(s('<img alt="a>b" src="data:image/png;base64,AAAA">')).toBe('');
+    expect(s('<img src=" DATA:image/png;base64,AAAA">')).toBe('');
+  });
+  it('keeps http(s) images', () => {
+    expect(s('<img src="https://x/y.jpg">')).toBe('<img src="https://x/y.jpg">');
   });
   it('strips javascript: links', () => {
     expect(s('<a href="javascript:alert(1)">x</a>')).toBe('<a>x</a>');
