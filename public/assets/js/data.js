@@ -2,6 +2,7 @@
 // news lists filter published == true, staff lists filter active == true.
 import { db, storage, firestoreSdk as f, storageSdk as st } from './firebase.js';
 import { resizeImage } from './lib/image-resize.js';
+import { cacheBust } from './lib/url.js';
 import { collectFiltered } from './lib/paginate.js';
 
 const withId = (d) => ({ id: d.id, ...d.data() });
@@ -98,6 +99,7 @@ export async function updateStaff(id, partial) {
 export async function uploadImage(path, file) {
   const blob = await resizeImage(file);
   const r = st.ref(storage, path);
-  await st.uploadBytes(r, blob, { contentType: 'image/jpeg' });
-  return st.getDownloadURL(r);
+  await st.uploadBytes(r, blob, { contentType: 'image/jpeg', cacheControl: 'public, max-age=300' });
+  // same path is reused, so the bare URL may not change: bust browser caches
+  return cacheBust(await st.getDownloadURL(r));
 }

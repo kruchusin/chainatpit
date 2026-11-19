@@ -4,6 +4,7 @@ import { editableStaffFields } from '../lib/permissions.js';
 import { updateStaff, uploadImage } from '../data.js';
 import { ImageDecodeError, TOO_LARGE_MESSAGE } from '../lib/image-resize.js';
 import { esc, safeUrl } from '../ui.js';
+import { safeEmail } from '../lib/email.js';
 
 const { profile, staff } = await requireLogin();
 if (!requireMenu(profile, 'profile')) await new Promise(() => {});
@@ -38,9 +39,14 @@ ${fields.includes('email') ? text('email', 'อีเมล', 'email') : ''}
   const fileInput = document.getElementById('f-photo');
   const preview = document.getElementById('photo-preview');
   let pendingFile = null;
+  let previewUrl = null;
   if (fileInput) fileInput.addEventListener('change', () => {
     pendingFile = fileInput.files[0] || null;
-    if (pendingFile) { preview.src = URL.createObjectURL(pendingFile); preview.hidden = false; }
+    if (pendingFile) {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      previewUrl = URL.createObjectURL(pendingFile);
+      preview.src = previewUrl; preview.hidden = false;
+    }
   });
 
   form.addEventListener('submit', async (e) => {
@@ -50,8 +56,15 @@ ${fields.includes('email') ? text('email', 'อีเมล', 'email') : ''}
     saveBtn.disabled = true;
     try {
       const partial = {};
-      for (const k of ['bio', 'education', 'email']) {
+      for (const k of ['bio', 'education']) {
         if (fields.includes(k) && form.elements[k] && form.elements[k].value !== (staff[k] || '')) partial[k] = form.elements[k].value;
+      }
+      if (fields.includes('email') && form.elements.email) {
+        const em = form.elements.email.value.trim();
+        if (em && em !== (staff.email || '')) {
+          if (!safeEmail(em)) { errEl.textContent = 'รูปแบบอีเมลไม่ถูกต้อง'; return; }
+          partial.email = em; // an emptied field is skipped, never sent as ''
+        }
       }
       if (pendingFile) {
         partial.photoUrl = await uploadImage(`staff/${staff.id}/photo.jpg`, pendingFile);

@@ -7,6 +7,11 @@ const noticeEl = document.getElementById('login-notice');
 const form = document.getElementById('login-form');
 const btn = document.getElementById('login-btn');
 
+// already signed in -> go straight on (a disabled account is signed out by the guard on arrival)
+if (params.get('reason') !== 'disabled') {
+  const off = authSdk.onAuthStateChanged(auth, (u) => { off(); if (u) location.replace(safeNext(params.get('next'))); });
+}
+
 if (params.get('reason') === 'disabled') errEl.textContent = 'บัญชีนี้ถูกปิดการใช้งาน กรุณาติดต่อผู้ดูแลระบบ';
 
 form.addEventListener('submit', async (e) => {
