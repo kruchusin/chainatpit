@@ -66,6 +66,7 @@ const DEPARTMENTS = [
   ['support', 'unit', 'บุคลากรสนับสนุน'],
 ];
 
+const BASE_SETTINGS_KEYS = ['schoolName', 'welcomeText', 'address', 'phone', 'email', 'logoUrl'];
 const SETTINGS = {
   schoolName: 'โรงเรียนชัยนาทพิทยาคม',
   welcomeText: 'ยินดีต้อนรับสู่เว็บไซต์โรงเรียนชัยนาทพิทยาคม',
@@ -73,13 +74,31 @@ const SETTINGS = {
   phone: '056-411-000',
   email: 'info@example.com',
   logoUrl: '',
+  facebookUrl: 'https://www.facebook.com/example',
+  aboutHtml: '<p>ข้อมูลสถานศึกษาตัวอย่าง</p><script data-evil>window.__evil = 1</script>',
+  executives: [{ name: 'นายผู้อำนวยการ ตัวอย่าง', position: 'ผู้อำนวยการโรงเรียน', photoUrl: '' }],
 };
+
+const DEPT_EXTRA = {
+  math: { description: 'คำอธิบายกลุ่มสาระคณิตศาสตร์ตัวอย่าง', externalUrl: 'https://example.com/math' },
+};
+
+const DOCUMENTS = [
+  ['d1', { title: 'แผนปฏิบัติการประจำปี', url: 'https://example.com/plan.pdf', category: 'แผนงาน', departmentId: null, year: 2569, order: 1 }],
+  ['d2', { title: 'รายงานผลการดำเนินงาน', url: 'https://example.com/report.pdf', category: 'รายงาน', departmentId: null, year: 2569, order: 2 }],
+  ['d3', { title: 'ITA ข้อ O1 โครงสร้าง', url: 'https://example.com/ita-o1.pdf', category: 'ITA', departmentId: null, year: 2569, order: 2 }],
+  ['d4', { title: 'ITA ข้อ O2 หน้าที่และอำนาจ', url: 'https://example.com/ita-o2.pdf', category: 'ITA', departmentId: null, year: 2569, order: 1 }],
+];
+
+// Real project gets only the base keys; sample about/executives/facebook are emulator-only.
+const BASE_SETTINGS = Object.fromEntries(BASE_SETTINGS_KEYS.map((k) => [k, SETTINGS[k]]));
 
 async function seedDepartmentsAndSettings() {
   // Real project: never overwrite existing docs (admins may have edited them). Emulator: overwrite.
   const writes = [
-    ...DEPARTMENTS.map(([id, type, name], i) => [`departments/${id}`, { name, type, order: i + 1 }]),
-    ['settings/site', SETTINGS],
+    ...DEPARTMENTS.map(([id, type, name], i) => [`departments/${id}`, { name, type, order: i + 1, ...(emulator ? DEPT_EXTRA[id] : {}) }]),
+    ...(emulator ? DOCUMENTS.map(([id, data]) => [`documents/${id}`, data]) : []), // sample docs: emulator only
+    ['settings/site', emulator ? SETTINGS : BASE_SETTINGS],
   ];
   const batch = db.batch();
   let created = 0;
@@ -120,7 +139,7 @@ async function seedTestUsers() {
     await db.doc(`users/${uid}`).set({ email, prDepartments: [], ...rest });
   }
   const staff = [
-    ['s1', { prefix: 'นาย', name: 'สมชาย ใจดี', position: 'ครู', departmentIds: ['math', 'academic'], uid: 't1', order: 1, active: true }],
+    ['s1', { prefix: 'นาย', name: 'สมชาย ใจดี', position: 'ครู', departmentIds: ['math', 'academic'], uid: 't1', order: 1, active: true, phone: '0812345678' /* admin SDK bypasses rules: pages must still never show it */ }],
     ['s2', { prefix: 'นางสาว', name: 'สมหญิง รักเรียน', position: 'ครู', departmentIds: ['sci'], uid: null, order: 2, active: true }],
     ['s3', { prefix: 'นาย', name: 'ครูที่ลาออกแล้ว', position: 'ครู', departmentIds: ['math'], uid: null, order: 3, active: false }],
   ];

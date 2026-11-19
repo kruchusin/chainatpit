@@ -27,6 +27,39 @@ export function renderNewsCard(item) {
 </article>`;
 }
 
+export const NOT_FOUND_HTML = '<p class="muted notfound">ไม่พบข้อมูล</p>';
+
+// Permission-denied / missing -> friendly "ไม่พบข้อมูล" (no console noise); anything else is logged.
+export function renderError(el, e) {
+  if (e && e.code === 'permission-denied') { el.innerHTML = NOT_FOUND_HTML; return; }
+  console.error(e);
+  el.innerHTML = '<p class="muted">ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่อีกครั้ง</p>';
+}
+
+// Public staff card. Only explicit fields are rendered: phone numbers are never shown (PDPA).
+export function renderStaffCard(s) {
+  const photo = safeUrl(s.photoUrl);
+  const email = /^[^\s@<>"']+@[^\s@<>"']+$/.test(s.email || '') ? s.email : '';
+  const fullName = [s.prefix, s.name].filter(Boolean).join('');
+  return `<article class="staff-card">
+  <div class="staff-photo">${photo ? `<img src="${esc(photo)}" alt="${esc(fullName)}" loading="lazy" width="160" height="160">` : '<div class="staff-photo-placeholder" aria-hidden="true"></div>'}</div>
+  <h3 class="staff-name">${esc(fullName)}</h3>
+  ${s.position ? `<p class="staff-position">${esc(s.position)}</p>` : ''}
+  ${s.education ? `<p class="staff-meta">${esc(s.education)}</p>` : ''}
+  ${email ? `<p class="staff-meta"><a href="mailto:${esc(email)}">${esc(email)}</a></p>` : ''}
+</article>`;
+}
+
+export function renderDocumentList(items) {
+  if (!items.length) return '<p class="muted">ไม่พบเอกสาร</p>';
+  return `<ul class="doc-list">${items.map((d) => {
+    const url = safeUrl(d.url);
+    const title = esc(d.title || 'เอกสาร');
+    return `<li class="doc-item">${url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${title}</a>` : `<span>${title}</span>`}
+<span class="doc-meta">${d.category ? esc(d.category) : ''}${d.year ? ` · พ.ศ. ${esc(d.year)}` : ''}</span></li>`;
+  }).join('')}</ul>`;
+}
+
 function navHtml(active, departments) {
   const link = (key, href, label) =>
     `<li><a href="${href}"${active === key ? ' aria-current="page"' : ''}>${label}</a></li>`;

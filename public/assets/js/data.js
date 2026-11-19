@@ -1,6 +1,7 @@
 // Read helpers. Every query is one the Firestore rules allow anonymously:
 // news lists filter published == true, staff lists filter active == true.
 import { db, firestoreSdk as f } from './firebase.js';
+import { collectFiltered } from './lib/paginate.js';
 
 const withId = (d) => ({ id: d.id, ...d.data() });
 
@@ -56,4 +57,25 @@ export async function listDocuments({ category } = {}) {
   const q = category ? f.query(col, f.where('category', '==', category)) : col;
   const items = (await f.getDocs(q)).docs.map(withId);
   return items.sort((a, b) => (b.year ?? 0) - (a.year ?? 0) || (a.order ?? 0) - (b.order ?? 0));
+}
+
+// Published news that have at least one image, newest first. Returns {items, cursor} like listNews.
+// index: news(published ASC, createdAt DESC). images.length is filtered on the client, so more
+// pages are fetched until pageSize items are found or the collection is exhausted.
+export async function listGalleryNews({ pageSize = 12, after } = {}) {
+  const col = f.collection(db, 'news');
+  const batch = Math.max(pageSize * 2, 24);
+  const { items, cursor } = await collectFiltered({
+    pageSize,
+    after,
+    accept: (d) => Array.isArray(d.data().images) && d.data().images.length > 0,
+    fetchPage: async (cur) => {
+      const parts = [f.where('published', '==', true), f.orderBy('createdAt', 'desc')];
+      if (cur) parts.push(f.startAfter(cur));
+      parts.push(f.limit(batch));
+      const snap = await f.getDocs(f.query(col, ...parts));
+      return { docs: snap.docs, more: snap.docs.length === batch };
+    },
+  });
+  return { items: items.map(withId), cursor };
 }
