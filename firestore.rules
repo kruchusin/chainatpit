@@ -41,6 +41,29 @@ service cloud.firestore {
       return isActive() && (id in prDepts());
     }
 
+    // ---------- scoped-writer helpers (news, documents) ----------
+    function isCentral() {
+      return isAdmin() || isPrCentral();
+    }
+
+    // active dept PR who is responsible for EVERY id, and ids is non-empty
+    function deptsWritable(ids) {
+      return isActive() && ids.size() > 0 && ids.hasOnly(prDepts());
+    }
+
+    function canCreateScoped(newIds) {
+      return isCentral() || deptsWritable(newIds);
+    }
+
+    // both old and new scope must belong to the writer (no pulling foreign docs in)
+    function canUpdateScoped(oldIds, newIds) {
+      return isCentral() || (deptsWritable(oldIds) && deptsWritable(newIds));
+    }
+
+    function canDeleteScoped(oldIds) {
+      return isCentral() || deptsWritable(oldIds);
+    }
+
     // ---------- users ----------
     match /users/{uid} {
       allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
@@ -107,6 +130,75 @@ service cloud.firestore {
                  .difference(resource.data.departmentIds.toSet())
                  .hasOnly(prDepts()))
       );
+    }
+
+    // ---------- news ----------
+    match /news/{id} {
+      function newsKeysOk() {
+        return request.resource.data.keys().hasOnly(
+          ['title', 'bodyHtml', 'coverUrl', 'images', 'departmentIds', 'pinned',
+           'published', 'authorUid', 'createdAt', 'updatedAt']);
+      }
+
+      function newIds() {
+        return request.resource.data.get('departmentIds', []);
+      }
+
+      function oldIds() {
+        return resource.data.get('departmentIds', []);
+      }
+
+      // only admin/pr_central may turn pinned on; others may keep an existing true
+      function pinnedOk(wasPinned) {
+        return isCentral()
+          || request.resource.data.get('pinned', false) != true
+          || wasPinned == true;
+      }
+
+      // Public reads published only (list queries must filter published == true).
+      allow read: if resource.data.get('published', false) == true
+        || isCentral()
+        || (isActive() && oldIds().hasAny(prDepts()))
+        || (isActive() && resource.data.get('authorUid', null) == request.auth.uid);
+
+      allow create: if isActive()
+        && newsKeysOk()
+        && request.resource.data.get('authorUid', null) == request.auth.uid
+        && pinnedOk(false)
+        && canCreateScoped(newIds());
+
+      allow update: if isActive()
+        && newsKeysOk()
+        && request.resource.data.get('authorUid', null) == resource.data.get('authorUid', null)
+        && pinnedOk(resource.data.get('pinned', false))
+        && canUpdateScoped(oldIds(), newIds());
+
+      allow delete: if isActive() && canDeleteScoped(oldIds());
+    }
+
+    // ---------- documents ----------
+    match /documents/{id} {
+      function docKeysOk() {
+        return request.resource.data.keys().hasOnly(
+          ['title', 'url', 'category', 'departmentId', 'year', 'order']);
+      }
+
+      // departmentId (string|null) viewed as a 0/1-element list
+      function docIds(d) {
+        return d.get('departmentId', null) == null ? [] : [d.departmentId];
+      }
+
+      allow read: if true;
+
+      allow create: if isActive()
+        && docKeysOk()
+        && canCreateScoped(docIds(request.resource.data));
+
+      allow update: if isActive()
+        && docKeysOk()
+        && canUpdateScoped(docIds(resource.data), docIds(request.resource.data));
+
+      allow delete: if isActive() && canDeleteScoped(docIds(resource.data));
     }
 
     // default deny: anything not matched above
