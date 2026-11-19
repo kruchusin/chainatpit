@@ -52,7 +52,32 @@ describe('news rules', () => {
     await assertFails(getDocs(collection(anon(), 'news')));
   });
 
-  it('prMath reads own-dept draft', async () => {
+  it('prMath lists math news incl. drafts (array-contains)', async () => {
+    const snap = await assertSucceeds(
+      getDocs(query(collection(ctx('prMath'), 'news'), where('departmentIds', 'array-contains', 'math')))
+    );
+    if (!snap.docs.some((d) => d.id === 'nDraft')) throw new Error('nDraft missing from list');
+  });
+
+  it('prMulti lists with array-contains-any', async () => {
+    await assertSucceeds(
+      getDocs(
+        query(collection(ctx('prMulti'), 'news'), where('departmentIds', 'array-contains-any', ['math', 'academic']))
+      )
+    );
+  });
+
+  it('anon unfiltered list fails; t1 (no prDepartments) unfiltered list fails', async () => {
+    await assertFails(getDocs(collection(anon(), 'news')));
+    await assertFails(getDocs(collection(ctx('t1'), 'news')));
+  });
+
+  it('disabled admin cannot list or get drafts', async () => {
+    await assertFails(getDocs(collection(ctx('off'), 'news')));
+    await assertFails(getDoc(doc(ctx('off'), 'news/nDraft')));
+  });
+
+  it('prMath reads own-dept draft, async () => {
     await assertSucceeds(getDoc(doc(ctx('prMath'), 'news/nDraft')));
   });
 

@@ -155,11 +155,20 @@ service cloud.firestore {
           || wasPinned == true;
       }
 
-      // Public reads published only (list queries must filter published == true).
-      allow read: if resource.data.get('published', false) == true
+      // get: public reads published; staff read per-document scope.
+      allow get: if resource.data.get('published', false) == true
         || isCentral()
         || (isActive() && oldIds().hasAny(prDepts()))
         || (isActive() && resource.data.get('authorUid', null) == request.auth.uid);
+
+      // list: queries must be provable, so use plain field access (no .get()).
+      // Public lists must filter published == true. NOTE: any active dept PR
+      // (non-empty prDepartments) may list other departments' drafts. This is
+      // accepted (internal staff; the UI filters by department).
+      allow list: if resource.data.published == true
+        || isCentral()
+        || (isActive() && prDepts().size() > 0)
+        || (isActive() && resource.data.authorUid == request.auth.uid);
 
       allow create: if isActive()
         && newsKeysOk()
