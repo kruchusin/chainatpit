@@ -158,8 +158,14 @@ async function openForm(p) {
   boxEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+// school palette (purple / gold, as on the school's printed materials) + a few accents
+const TEXT_COLORS = ['#1f2933', '#5b2a86', '#8e44ad', '#b8860b', '#c0392b', '#1f6f43', '#1c4e80', '#d35400', '#7f8c8d'];
+const HIGHLIGHTS = [false, '#f3e8ff', '#fff3cd', '#fde2e1', '#e8f4ea', '#e3f0fb'];
+
 function makeEditor(id) {
   const Quill = window.Quill;
+  // alignment as inline style (kept by the sanitizer) instead of ql-align-* classes
+  Quill.register(Quill.import('attributors/style/align'), true);
   const table = () => quill.getModule('table');
   const inTable = (fn) => () => {
     quill.focus();
@@ -170,12 +176,13 @@ function makeEditor(id) {
   };
   const quill = new Quill('#page-editor', {
     theme: 'snow',
-    formats: ['header', 'bold', 'italic', 'underline', 'link', 'list', 'blockquote', 'image', 'video', 'table'],
+    formats: ['header', 'bold', 'italic', 'underline', 'strike', 'color', 'background', 'align', 'link', 'list', 'indent', 'blockquote', 'image', 'video', 'table'],
     modules: {
       table: true,
       toolbar: {
-        container: [[{ header: [2, 3, false] }], ['bold', 'italic', 'underline', 'link'],
-          [{ list: 'ordered' }, { list: 'bullet' }], ['blockquote'], ['image', 'video'],
+        container: [[{ header: [2, 3, false] }], ['bold', 'italic', 'underline', 'strike', 'link'],
+          [{ color: TEXT_COLORS }, { background: HIGHLIGHTS }], [{ align: [] }],
+          [{ list: 'ordered' }, { list: 'bullet' }, { indent: '-1' }, { indent: '+1' }], ['blockquote'], ['image', 'video'],
           ['tbl-insert', 'tbl-row', 'tbl-col', 'tbl-delrow', 'tbl-delcol', 'tbl-del']],
         handlers: {
           image() {
@@ -218,6 +225,7 @@ function makeEditor(id) {
     },
   });
   quill.root.setAttribute('aria-labelledby', 'body-label');
+  quill.root.classList.add('info-body'); // same look as the public page
   [['tbl-insert', 'แทรกตาราง'], ['tbl-row', 'เพิ่มแถว'], ['tbl-col', 'เพิ่มคอลัมน์'], ['tbl-delrow', 'ลบแถว'], ['tbl-delcol', 'ลบคอลัมน์'], ['tbl-del', 'ลบตาราง']]
     .forEach(([k, label]) => { const b = boxEl.querySelector(`.ql-${k}`); if (b) b.setAttribute('aria-label', label); });
   return quill;

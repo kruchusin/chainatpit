@@ -149,3 +149,18 @@ select { padding: .5rem .6rem; border: 1px solid var(--color-border); border-rad
 .topic-list { list-style: none; padding: 0; display: grid; gap: .5rem; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
 .topic-list a { display: block; padding: .75rem 1rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); text-decoration: none; }
 .topic-list a:hover { border-color: var(--color-primary); }
+
+/* "ข้อมูลสถานศึกษา" sub-pages: purple/gold look */
+.info-body { border-top: 5px solid #5b2a86; }
+.info-body h2 { display: inline-block; margin: 1.6rem 0 .6rem; padding: .3rem 1.2rem; color: #fff; font-size: 1.25rem;
+  background: linear-gradient(90deg, #5b2a86, #8e44ad); border-radius: 999px; box-shadow: 0 2px 0 #b8860b; }
+.info-body h2:first-child { margin-top: 0; }
+/* pasted text may carry inline colours: headings always stay white on purple */
+.info-body h2 * { color: #fff !important; background: none !important; }
+.info-body h3 { color: #5b2a86; border-left: 4px solid #b8860b; padding-left: .6rem; }
+.info-body ul { padding-left: 1.4rem; }
+.info-body li::marker { color: #8e44ad; }
+.info-body li { margin: .25rem 0; }
+.info-body blockquote { margin: 1rem 0; padding: .75rem 1rem; background: #f7f1fc; border-left: 4px solid #8e44ad; border-radius: 0 8px 8px 0; }
+.info-body img { border-radius: 10px; box-shadow: 0 4px 14px rgba(0,0,0,.12); }
+.info-body th, .info-body tr:first-child td { background: #f3e8ff; font-weight: 600; }

@@ -50,8 +50,13 @@ describe('sanitize', () => {
     const out = s('<a href="https://a.com" target="_blank">x</a>');
     expect(out).toContain('rel="noopener"');
   });
-  it('keeps Quill tables, strips style/handlers in cells', () => {
+  it('keeps Quill tables and colour, strips handlers in cells', () => {
     expect(s('<table><tbody><tr><td data-row="r1" onclick="x()" style="color:red">a</td></tr></tbody></table>'))
-      .toBe('<table><tbody><tr><td data-row="r1">a</td></tr></tbody></table>');
+      .toBe('<table><tbody><tr><td data-row="r1" style="color: red">a</td></tr></tbody></table>');
+  });
+  it('keeps only colour/highlight/align styles', () => {
+    expect(s('<p style="text-align: center; position: fixed">a <span style="color: #5b2a86; background-color: rgb(255, 243, 205); background-image: url(https://x)">b</span></p>'))
+      .toBe('<p style="text-align: center">a <span style="color: #5b2a86; background-color: rgb(255, 243, 205)">b</span></p>');
+    expect(s('<span style="background: url(javascript:alert(1))">x</span>')).toBe('<span>x</span>');
   });
 });

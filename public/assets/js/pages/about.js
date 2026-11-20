@@ -22,7 +22,7 @@ if (pageId) {
       heading.textContent = page.title;
       document.title = `${page.title} - ข้อมูลสถานศึกษา`;
       const body = clean(page.bodyHtml);
-      box.innerHTML = body ? `<div class="article news-body">${body}</div>` : '<p class="muted">ยังไม่มีเนื้อหาในหัวข้อนี้</p>';
+      box.innerHTML = body ? `<div class="article news-body info-body">${body}</div>` : '<p class="muted">ยังไม่มีเนื้อหาในหัวข้อนี้</p>';
     }
   } catch (e) { renderError(box, e); }
 } else {

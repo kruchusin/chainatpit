@@ -73,6 +73,7 @@
 .dept-admin-list .dept-head { display: flex; flex-wrap: wrap; gap: .5rem .9rem; align-items: center; margin-bottom: .5rem; }
 /* "ข้อมูลสถานศึกษา" pages editor: Quill custom table buttons have no icons, so they get text labels */
 #page-editor { min-height: 20rem; background: #fff; }
+#page-editor .ql-editor.info-body { border-top: 0; }
 #page-editor table { border-collapse: collapse; width: 100%; }
 #page-editor td { border: 1px solid #9aa5b5; padding: .3rem .5rem; min-width: 3rem; }
 .ql-toolbar .ql-formats button[class^="ql-tbl-"] { width: auto; padding: 0 .4rem; font-size: .8rem; }
