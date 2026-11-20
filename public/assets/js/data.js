@@ -1,11 +1,11 @@
 // Read helpers. Every query is one the Firestore rules allow anonymously:
 // news lists filter published == true, staff lists filter active == true.
-import { db, auth, storage, firestoreSdk as f, storageSdk as st } from './firebase.js';
+import { db, auth, firestoreSdk as f } from './firebase.js';
 import { callAdminUsersWith } from './lib/admin-api.js';
 import { DOC_KEYS } from './lib/doc-edit.js';
 import { SETTINGS_KEYS } from './lib/settings-edit.js';
 import { resizeImage } from './lib/image-resize.js';
-import { cacheBust } from './lib/url.js';
+import { uploadMediaWith, deleteMediaWith } from './lib/media-api.js';
 import { collectFiltered } from './lib/paginate.js';
 import { isAdmin, isPrCentral, prDepts } from './lib/permissions.js';
 import { NEWS_WRITE_KEYS } from './lib/news-payload.js';
@@ -104,11 +104,11 @@ export async function updateStaff(id, partial) {
 // Resizes (<=1600px, <=2MB JPEG) then uploads. Throws ImageDecodeError for unreadable files.
 export async function uploadImage(path, file) {
   const blob = await resizeImage(file);
-  const r = st.ref(storage, path);
-  await st.uploadBytes(r, blob, { contentType: 'image/jpeg', cacheControl: 'public, max-age=300' });
-  // same path is reused, so the bare URL may not change: bust browser caches
-  return cacheBust(await st.getDownloadURL(r));
+  // the server returns /media/<path>?v=<ts>, so re-uploads to the same path bust caches
+  return uploadMediaWith((...a) => fetch(...a), () => auth.currentUser.getIdToken(), path, blob);
 }
+
+const deleteMedia = (target) => deleteMediaWith((...a) => fetch(...a), () => auth.currentUser.getIdToken(), target);
 
 // ---------- admin news helpers ----------
 
@@ -137,7 +137,7 @@ export async function getNewsForEditor(id) {
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
-// Creates an unpublished draft so Storage rules (news doc must exist) accept image uploads. Returns the id.
+// Creates an unpublished draft so the media API (news doc must exist) accept image uploads. Returns the id.
 // pinned:false is written explicitly: the public home query orders by pinned, which skips docs lacking the field.
 export async function createDraftNews(profile, departmentIds) {
   const ref = f.doc(f.collection(db, 'news'));
@@ -156,14 +156,13 @@ export async function saveNews(id, data) {
   await f.updateDoc(f.doc(db, 'news', id), { ...data, updatedAt: f.serverTimestamp() });
 }
 
-// Storage files first (the storage rules need the doc to still exist), then the doc.
+// Media first (the doc still exists then), then the doc.
 // A failure while deleting files is logged but never blocks deleting the document.
 export async function deleteNews(id) {
   try {
-    const { items } = await st.listAll(st.ref(storage, `news/${id}`));
-    await Promise.all(items.map((r) => st.deleteObject(r)));
+    await deleteMedia({ prefix: `news/${id}/` });
   } catch (e) {
-    console.error('deleteNews: could not delete storage files', e);
+    console.error('deleteNews: could not delete media', e);
   }
   await f.deleteDoc(f.doc(db, 'news', id));
 }
@@ -245,9 +244,9 @@ export async function deleteDepartment(id) {
   }
   await f.deleteDoc(f.doc(db, 'departments', id));
   try {
-    await st.deleteObject(st.ref(storage, `departments/${id}/cover.jpg`));
+    await deleteMedia({ prefix: `departments/${id}/` });
   } catch (e) {
-    if (!(e && e.code === 'storage/object-not-found')) console.error('deleteDepartment: could not delete cover', e);
+    console.error('deleteDepartment: could not delete media', e);
   }
 }
 

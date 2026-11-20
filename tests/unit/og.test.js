@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { buildOgTags, injectIntoHead, onRequestGet } from '../../functions/news/[id].js';
+import { buildOgTags, injectIntoHead, absoluteImage, onRequestGet } from '../../functions/news/[id].js';
 import { encodeFields } from '../../functions/_lib/google-auth.js';
 
 const PID = 'proj-x';
@@ -114,5 +114,17 @@ describe('onRequestGet', () => {
     mockDoc(200, { title: 't', bodyHtml: '', published: true });
     await onRequestGet({ request: new Request('https://school.example/news/a'), env: { ...env, FIREBASE_PROJECT_ID: 'demo-x', FIRESTORE_EMULATOR_HOST: '127.0.0.1:8080', FIREBASE_AUTH_EMULATOR_HOST: '127.0.0.1:9099' }, params: { id: 'a' } });
     expect(globalThis.fetch.mock.calls[0][0]).toBe(`http://127.0.0.1:8080/v1/projects/demo-x/databases/(default)/documents/news/a`);
+  });
+});
+
+describe('absoluteImage', () => {
+  it('og: relative coverUrl made absolute', () => {
+    expect(absoluteImage('/media/news/n1/a.jpg?v=1', 'https://www.chainatpit.ac.th')).toBe('https://www.chainatpit.ac.th/media/news/n1/a.jpg?v=1');
+  });
+  it('keeps absolute http(s), rejects unsafe and protocol-relative', () => {
+    expect(absoluteImage('https://x/y.jpg', 'https://o')).toBe('https://x/y.jpg');
+    expect(absoluteImage('javascript:alert(1)', 'https://o')).toBeUndefined();
+    expect(absoluteImage('//evil/x.jpg', 'https://o')).toBeUndefined();
+    expect(absoluteImage('', 'https://o')).toBeUndefined();
   });
 });

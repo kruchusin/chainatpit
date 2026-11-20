@@ -4,11 +4,11 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "wrangler pages dev public --port 8788",
+    "dev": "wrangler pages dev public --port 8788 --r2=MEDIA",
     "seed:emu": "node scripts/seed.mjs --emulator",
     "test:unit": "vitest run --project unit",
-    "test:rules": "firebase emulators:exec --project demo-chainatpit --only firestore,storage \"vitest run --project rules\"",
-    "test:e2e": "firebase emulators:exec --project demo-chainatpit --only auth,firestore,storage \"playwright test\"",
+    "test:rules": "firebase emulators:exec --project demo-chainatpit --only firestore \"vitest run --project rules\"",
+    "test:e2e": "firebase emulators:exec --project demo-chainatpit --only auth,firestore \"playwright test\"",
     "test": "npm run test:unit && npm run test:rules && npm run test:e2e"
   },
   "devDependencies": {

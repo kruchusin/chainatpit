@@ -185,7 +185,7 @@ form.addEventListener('submit', async (e) => {
     noticeEl.textContent = 'บันทึกเรียบร้อยแล้ว';
   } catch (err) {
     if (err instanceof ImageDecodeError || (err && err.message === TOO_LARGE_MESSAGE)) errEl.textContent = err.message;
-    else if (err && (err.code === 'permission-denied' || err.code === 'storage/unauthorized')) errEl.textContent = 'ไม่มีสิทธิ์บันทึกข้อมูลนี้';
+    else if (err && (err.code === 'permission-denied' || err.code === 'FORBIDDEN')) errEl.textContent = 'ไม่มีสิทธิ์บันทึกข้อมูลนี้';
     else { console.error(err); errEl.textContent = 'บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง'; }
   } finally {
     saveBtn.disabled = false;

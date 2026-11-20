@@ -12,11 +12,6 @@ export async function getEnv() {
       host: '127.0.0.1',
       port: 8080,
     },
-    storage: {
-      rules: readFileSync(new URL('../../storage.rules', import.meta.url), 'utf8'),
-      host: '127.0.0.1',
-      port: 9199,
-    },
   });
 }
 
@@ -51,8 +46,3 @@ export async function seed(env) {
 
 export const ctx = (env, uid) => env.authenticatedContext(uid).firestore();
 export const anon = (env) => env.unauthenticatedContext().firestore();
-export const st = (env, uid) => env.authenticatedContext(uid).storage();
-export const anonStorage = (env) => env.unauthenticatedContext().storage();
-
-export const bytes = (n, type) => ({ data: new Uint8Array(n), metadata: { contentType: type } });
-export const img = (n) => bytes(n, 'image/jpeg');

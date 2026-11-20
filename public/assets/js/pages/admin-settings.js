@@ -128,7 +128,7 @@ document.getElementById('settings-form').addEventListener('submit', async (e) =>
     if (err instanceof ImageDecodeError || (err && err.message === TOO_LARGE_MESSAGE)) errEl.textContent = err.message;
     else {
       console.error(err);
-      errEl.textContent = err && (err.code === 'permission-denied' || err.code === 'storage/unauthorized') ? 'ไม่มีสิทธิ์ดำเนินการนี้' : 'บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง';
+      errEl.textContent = err && (err.code === 'permission-denied' || err.code === 'FORBIDDEN') ? 'ไม่มีสิทธิ์ดำเนินการนี้' : 'บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง';
     }
   } finally {
     btn.disabled = false;

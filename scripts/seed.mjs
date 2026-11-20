@@ -30,7 +30,6 @@ if (emulator) {
   const ports = JSON.parse(readFileSync(new URL('../firebase.json', import.meta.url), 'utf8')).emulators;
   process.env.FIRESTORE_EMULATOR_HOST = `127.0.0.1:${ports.firestore.port}`;
   process.env.FIREBASE_AUTH_EMULATOR_HOST = `127.0.0.1:${ports.auth.port}`;
-  process.env.FIREBASE_STORAGE_EMULATOR_HOST = `127.0.0.1:${ports.storage.port}`;
   initializeApp({ projectId: EMU_PROJECT });
 } else {
   console.warn(`คำเตือน: สคริปต์นี้จะเขียนข้อมูลลงโปรเจกต์จริง "${REAL_PROJECT}"`);

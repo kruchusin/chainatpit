@@ -21,7 +21,7 @@ const clear = () => { errEl.textContent = ''; noticeEl.textContent = ''; };
 const fail = (e, fallback) => {
   if (e instanceof ImageDecodeError || (e && (e.message === TOO_LARGE_MESSAGE || e.code === 'dept-in-use'))) { errEl.textContent = e.message; return; }
   console.error(e);
-  errEl.textContent = e && (e.code === 'permission-denied' || e.code === 'storage/unauthorized') ? 'ไม่มีสิทธิ์ดำเนินการนี้' : fallback;
+  errEl.textContent = e && (e.code === 'permission-denied' || e.code === 'FORBIDDEN') ? 'ไม่มีสิทธิ์ดำเนินการนี้' : fallback;
 };
 
 let depts = [];

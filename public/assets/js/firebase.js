@@ -9,7 +9,6 @@ const config = {
   apiKey: 'AIzaSyCfOuuV42UIiwqEOEag0djuMmX7FFEDfi8',               // Firebase console → Project settings → Web API Key
   authDomain: 'chainatpit-a8c9c.firebaseapp.com',
   projectId: 'chainatpit-a8c9c',
-  storageBucket: 'chainatpit-a8c9c.firebasestorage.app',
   messagingSenderId: '44215680838', // Firebase console → Project settings → Cloud Messaging
   appId: '1:44215680838:web:2a10283f4f1f3900fd2f47',                      // Firebase console → Project settings → Your apps
 };
@@ -17,25 +16,21 @@ const config = {
 if (isLocal) { config.projectId = 'demo-chainatpit'; config.apiKey = 'demo-key'; }
 
 const base = `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}`;
-const [appMod, authMod, fsMod, stMod] = await Promise.all([
+const [appMod, authMod, fsMod] = await Promise.all([
   import(`${base}/firebase-app.js`),
   import(`${base}/firebase-auth.js`),
   import(`${base}/firebase-firestore.js`),
-  import(`${base}/firebase-storage.js`),
 ]);
 
 export const app = appMod.initializeApp(config);
 export const auth = authMod.getAuth(app);
 export const db = fsMod.getFirestore(app);
-export const storage = stMod.getStorage(app);
 
 if (isLocal) {
   authMod.connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
   fsMod.connectFirestoreEmulator(db, '127.0.0.1', 8080);
-  stMod.connectStorageEmulator(storage, '127.0.0.1', 9199);
 }
 
 // SDK namespaces re-exported so other modules never repeat the versioned URL.
 export const authSdk = authMod;
 export const firestoreSdk = fsMod;
-export const storageSdk = stMod;

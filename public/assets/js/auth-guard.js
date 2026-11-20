@@ -1,4 +1,4 @@
-// Admin auth guard. UI-level only: the Firestore/Storage rules are the real security.
+// Admin auth guard. UI-level only: the Firestore rules / media API are the real security.
 import { auth, db, authSdk, firestoreSdk as f } from './firebase.js';
 import { safeNext } from './lib/auth-messages.js';
 

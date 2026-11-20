@@ -1,4 +1,4 @@
-// Pure permission logic for R2 media paths. Mirrors storage.rules exactly.
+// Pure permission logic for R2 media paths. Replaces the former storage.rules.
 // No I/O, no npm imports.
 const ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
 const FILE_RE = /^[A-Za-z0-9._-]{1,100}$/;

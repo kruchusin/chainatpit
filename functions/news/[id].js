@@ -30,6 +30,14 @@ export function buildOgTags({ title, description, image, url, siteName }) {
 }
 
 // Pure string helper. A <title> in `tags` replaces the page's existing <title>.
+// Relative /media/... URLs become absolute (crawlers need it); only http(s) and single-slash paths pass.
+export function absoluteImage(raw, origin) {
+  const v = String(raw || '');
+  if (/^https?:\/\//i.test(v)) return v;
+  if (v.startsWith('/') && !v.startsWith('//')) return origin + v;
+  return undefined;
+}
+
 export function injectIntoHead(html, tags) {
   let out = html;
   if (/<title>/i.test(tags)) out = out.replace(/<title>[\s\S]*?<\/title>/i, '');
@@ -85,7 +93,7 @@ export async function onRequestGet({ request, env, params }) {
     const page = await fetchAsset(env, url.origin, '/news-detail.html');
     if (!page.ok) return await notFound(env, url.origin);
     const rawImage = news.coverUrl || (Array.isArray(news.images) && news.images[0]) || '';
-    const image = /^https?:\/\//i.test(String(rawImage)) ? String(rawImage) : undefined;
+    const image = absoluteImage(rawImage, new URL(request.url).origin);
     const tags = buildOgTags({
       title: news.title || DEFAULT_SITE_NAME,
       description: describe(news.bodyHtml),
