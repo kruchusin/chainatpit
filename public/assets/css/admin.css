@@ -71,3 +71,15 @@
 .badge-hidden { background: #f3d9d6; }
 .dept-admin-list li { display: block; }
 .dept-admin-list .dept-head { display: flex; flex-wrap: wrap; gap: .5rem .9rem; align-items: center; margin-bottom: .5rem; }
+/* "ข้อมูลสถานศึกษา" pages editor: Quill custom table buttons have no icons, so they get text labels */
+#page-editor { min-height: 20rem; background: #fff; }
+#page-editor table { border-collapse: collapse; width: 100%; }
+#page-editor td { border: 1px solid #9aa5b5; padding: .3rem .5rem; min-width: 3rem; }
+.ql-toolbar .ql-formats button[class^="ql-tbl-"] { width: auto; padding: 0 .4rem; font-size: .8rem; }
+.ql-toolbar button.ql-tbl-insert::after { content: 'ตาราง'; }
+.ql-toolbar button.ql-tbl-row::after { content: '+แถว'; }
+.ql-toolbar button.ql-tbl-col::after { content: '+คอลัมน์'; }
+.ql-toolbar button.ql-tbl-delrow::after { content: '−แถว'; }
+.ql-toolbar button.ql-tbl-delcol::after { content: '−คอลัมน์'; }
+.ql-toolbar button.ql-tbl-del::after { content: 'ลบตาราง'; }
+.check-inline { display: flex; gap: .5rem; align-items: center; min-height: 44px; font-weight: 600; }

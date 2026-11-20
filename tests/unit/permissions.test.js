@@ -87,8 +87,8 @@ describe('permissions', () => {
   it('menuFor', () => {
     expect(menuFor(t1)).toEqual(['profile']);
     expect(menuFor(prMath)).toEqual(['profile', 'news', 'staff', 'departments', 'documents']);
-    expect(menuFor(prc)).toEqual(['profile', 'news', 'documents']);
-    expect(menuFor(admin)).toEqual(['profile', 'news', 'staff', 'departments', 'documents', 'users', 'settings']);
+    expect(menuFor(prc)).toEqual(['profile', 'news', 'documents', 'pages']);
+    expect(menuFor(admin)).toEqual(['profile', 'news', 'staff', 'departments', 'documents', 'pages', 'users', 'settings']);
     expect(menuFor({ ...admin, disabled: true })).toEqual([]);
     expect(menuFor(null)).toEqual([]);
   });

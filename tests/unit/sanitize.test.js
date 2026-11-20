@@ -50,4 +50,8 @@ describe('sanitize', () => {
     const out = s('<a href="https://a.com" target="_blank">x</a>');
     expect(out).toContain('rel="noopener"');
   });
+  it('keeps Quill tables, strips style/handlers in cells', () => {
+    expect(s('<table><tbody><tr><td data-row="r1" onclick="x()" style="color:red">a</td></tr></tbody></table>'))
+      .toBe('<table><tbody><tr><td data-row="r1">a</td></tr></tbody></table>');
+  });
 });

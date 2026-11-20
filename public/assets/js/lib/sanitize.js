@@ -1,6 +1,7 @@
 // createSanitizer(DOMPurify) -> (html) => safe html. DOMPurify is injected (no imports here).
 const ALLOWED_TAGS = ['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'a', 'ul', 'ol', 'li',
-  'h2', 'h3', 'blockquote', 'img', 'iframe', 'figure', 'figcaption'];
+  'h2', 'h3', 'blockquote', 'img', 'iframe', 'figure', 'figcaption',
+  'table', 'thead', 'tbody', 'tr', 'th', 'td'];
 const ALLOWED_ATTR = ['href', 'target', 'rel', 'src', 'alt', 'width', 'height', 'allowfullscreen'];
 const YOUTUBE_PREFIX = 'https://www.youtube.com/embed/';
 

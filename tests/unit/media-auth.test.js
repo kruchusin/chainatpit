@@ -36,6 +36,7 @@ describe('parseMediaPrefix', () => {
   it('accepts news and departments prefixes only', () => {
     expect(parseMediaPrefix('news/n1/')).toEqual({ kind: 'news', id: 'n1' });
     expect(parseMediaPrefix('departments/math/')).toEqual({ kind: 'departments', id: 'math' });
+    expect(parseMediaPrefix('pages/p1/')).toEqual({ kind: 'pages', id: 'p1' });
     ['site/', 'staff/s1/', 'news/n1', 'news//', 'news/../', 'news/a/b/', '', 'news/a%2F/'].forEach((p) => expect(parseMediaPrefix(p)).toBeNull());
   });
 });
@@ -46,6 +47,7 @@ describe('targetDocPath', () => {
     expect(targetDocPath(P('staff/s1/photo.jpg'))).toBe('staff/s1');
     expect(targetDocPath(P('departments/math/c.jpg'))).toBe('departments/math');
     expect(targetDocPath(P('site/logo.jpg'))).toBeNull();
+    expect(targetDocPath(P('pages/p1/a.jpg'))).toBeNull(); // central-only: no doc lookup needed
   });
 });
 
@@ -92,5 +94,24 @@ describe('canWriteMedia', () => {
     expect(canWriteMedia(prc, pre, null, 'prc', { forDelete: true })).toBe(true);
     expect(canWriteMedia(admin, pre, null, 'admin', { forDelete: true })).toBe(true);
     expect(canWriteMedia(prMath, pre, null, 'prMath', { forDelete: true })).toBe(false);
+  });
+});
+
+describe('pages media', () => {
+  const admin = { role: 'admin' };
+  const prc = { role: 'pr_central' };
+  const pr = { role: 'teacher', prDepartments: ['math'] };
+  it('parses pages/<id>/<file>', () => {
+    expect(parseMediaPath('pages/p1/x.jpg')).toEqual({ kind: 'pages', id: 'p1', file: 'x.jpg' });
+    expect(parseMediaPath('pages/../x.jpg')).toBeNull();
+    expect(parseMediaPath('pages/p1')).toBeNull();
+  });
+  it('admin and pr_central only, also for delete without doc', () => {
+    const parsed = parseMediaPath('pages/p1/x.jpg');
+    expect(canWriteMedia(admin, parsed, null, 'u')).toBe(true);
+    expect(canWriteMedia(prc, parsed, null, 'u', { forDelete: true })).toBe(true);
+    expect(canWriteMedia(pr, parsed, null, 'u')).toBe(false);
+    expect(canWriteMedia({ role: 'teacher' }, parsed, null, 'u')).toBe(false);
+    expect(canWriteMedia({ ...prc, disabled: true }, parsed, null, 'u')).toBe(false);
   });
 });

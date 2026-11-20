@@ -70,6 +70,7 @@ export function menuFor(p) {
   if (isCentral(p) || prDepts(p).length > 0) menu.push('news');
   if (isAdmin(p) || prDepts(p).length > 0) menu.push('staff', 'departments');
   if (isCentral(p) || prDepts(p).length > 0) menu.push('documents');
+  if (isCentral(p)) menu.push('pages');
   if (isAdmin(p)) menu.push('users', 'settings');
   return menu;
 }

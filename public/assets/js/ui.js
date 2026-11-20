@@ -1,5 +1,5 @@
 // Shared layout (header / nav / footer) and shared renderers.
-import { getSettings, listDepartments } from './data.js';
+import { getSettings, listDepartments, listInfoPages } from './data.js';
 import { formatThaiDate } from './lib/thai-date.js';
 import { safeEmail } from './lib/email.js';
 import { esc, safeUrl } from './lib/html.js';
@@ -58,15 +58,26 @@ export function renderDocumentList(items) {
   }).join('')}</ul>`;
 }
 
-function navHtml(active, departments) {
+// pages: published "ข้อมูลสถานศึกษา" sub-pages (sorted). activePage: id of the sub-page being shown.
+export function navHtml(active, departments, pages = [], activePage = null) {
   const link = (key, href, label) =>
     `<li><a href="${href}"${active === key ? ' aria-current="page"' : ''}>${label}</a></li>`;
   const group = (type) => departments.filter((d) => d.type === type)
     .map((d) => `<li><a href="/department.html?id=${encodeURIComponent(d.id)}">${esc(d.name)}</a></li>`).join('');
   const deptActive = active === 'department';
+  const aboutActive = active === 'about';
+  const about = pages.length
+    ? `<li class="has-dropdown dropdown-start">
+      <button type="button" class="dropdown-toggle" aria-expanded="false"${aboutActive ? ' aria-current="true"' : ''}>ข้อมูลสถานศึกษา</button>
+      <ul class="dropdown">
+        <li><a href="/about.html"${aboutActive && !activePage ? ' aria-current="page"' : ''}>ภาพรวมสถานศึกษา</a></li>
+        ${pages.map((p) => `<li><a href="/about.html?p=${encodeURIComponent(p.id)}"${aboutActive && activePage === p.id ? ' aria-current="page"' : ''}>${esc(p.title)}</a></li>`).join('')}
+      </ul>
+    </li>`
+    : link('about', '/about.html', 'ข้อมูลสถานศึกษา');
   return `<ul class="nav-list">
     ${link('home', '/', 'หน้าแรก')}
-    ${link('about', '/about.html', 'ข้อมูลสถานศึกษา')}
+    ${about}
     ${link('staff', '/staff.html', 'บุคลากร')}
     <li class="has-dropdown">
       <button type="button" class="dropdown-toggle" aria-expanded="false"${deptActive ? ' aria-current="true"' : ''}>กลุ่มสาระ/ฝ่ายงาน</button>
@@ -92,22 +103,27 @@ function wireNav(root) {
     btn.setAttribute('aria-expanded', String(open));
     nav.classList.toggle('open', open);
   });
-  const dd = root.querySelector('.dropdown-toggle');
-  dd.addEventListener('click', () => {
+  const toggles = [...root.querySelectorAll('.dropdown-toggle')];
+  const setOpen = (dd, open) => { dd.setAttribute('aria-expanded', String(open)); dd.parentElement.classList.toggle('open', open); };
+  toggles.forEach((dd) => dd.addEventListener('click', () => {
     const open = dd.getAttribute('aria-expanded') !== 'true';
-    dd.setAttribute('aria-expanded', String(open));
-    dd.parentElement.classList.toggle('open', open);
+    toggles.forEach((o) => o !== dd && setOpen(o, false)); // one dropdown at a time
+    setOpen(dd, open);
+  }));
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.has-dropdown')) toggles.forEach((dd) => setOpen(dd, false));
   });
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
-    dd.setAttribute('aria-expanded', 'false'); dd.parentElement.classList.remove('open');
+    toggles.forEach((dd) => setOpen(dd, false));
     btn.setAttribute('aria-expanded', 'false'); nav.classList.remove('open');
   });
 }
 
-export async function mountLayout({ active } = {}) {
-  let settings = {}; let departments = [];
+export async function mountLayout({ active, activePage = null } = {}) {
+  let settings = {}; let departments = []; let pages = [];
   try { [settings, departments] = await Promise.all([getSettings(), listDepartments()]); } catch (e) { console.error(e); }
+  try { pages = await listInfoPages(); } catch (e) { console.error(e); } // menu still works without sub-pages
   const name = settings.schoolName || DEFAULT_NAME;
   const logo = safeUrl(settings.logoUrl);
 
@@ -117,7 +133,7 @@ export async function mountLayout({ active } = {}) {
 <div class="container header-inner">
   <a class="brand" href="/">${logo ? `<img src="${esc(logo)}" alt="ตราโรงเรียน" width="44" height="44">` : ''}<span class="brand-name">${esc(name)}</span></a>
   <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="main-nav" aria-label="เมนู"><span class="bars" aria-hidden="true"></span></button>
-  <nav id="main-nav" aria-label="เมนูหลัก">${navHtml(active, departments)}</nav>
+  <nav id="main-nav" aria-label="เมนูหลัก">${navHtml(active, departments, pages, activePage)}</nav>
 </div>`;
     wireNav(header);
   }
@@ -129,5 +145,5 @@ export async function mountLayout({ active } = {}) {
   <p class="copyright">&copy; ${new Date().getFullYear() + 543} ${esc(name)}</p>
 </div>`;
   }
-  return { settings, departments };
+  return { settings, departments, pages };
 }

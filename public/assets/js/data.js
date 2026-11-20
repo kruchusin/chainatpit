@@ -10,6 +10,7 @@ import { collectFiltered } from './lib/paginate.js';
 import { isAdmin, isPrCentral, prDepts } from './lib/permissions.js';
 import { NEWS_WRITE_KEYS } from './lib/news-payload.js';
 import { swapOrders } from './lib/staff-edit.js';
+import { PAGE_KEYS, sortPages } from './lib/info-pages.js';
 
 const withId = (d) => ({ id: d.id, ...d.data() });
 
@@ -23,6 +24,23 @@ export async function listDepartments(type) {
   const q = type ? f.query(col, f.where('type', '==', type)) : col;
   const items = (await f.getDocs(q)).docs.map(withId);
   return items.sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || String(a.name).localeCompare(String(b.name), 'th'));
+}
+
+// Published "ข้อมูลสถานศึกษา" sub-pages for the menu, sorted by order (no index needed: sorted here).
+export async function listInfoPages() {
+  const q = f.query(f.collection(db, 'pages'), f.where('published', '==', true));
+  return sortPages((await f.getDocs(q)).docs.map(withId));
+}
+
+// null when missing or not published (permission-denied for anon).
+export async function getInfoPage(id) {
+  try {
+    const snap = await f.getDoc(f.doc(db, 'pages', id));
+    return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+  } catch (e) {
+    if (e && e.code === 'permission-denied') return null;
+    throw e;
+  }
 }
 
 // Returns {items, cursor}; cursor is the last snapshot (pass as `after`) or null when no more pages.
@@ -293,4 +311,44 @@ export async function saveDocument(id, data) {
 
 export async function deleteDocument(id) {
   await f.deleteDoc(f.doc(db, 'documents', id));
+}
+
+// ---------- admin "ข้อมูลสถานศึกษา" pages (admin / pr_central) ----------
+
+export async function listInfoPagesForEditor() {
+  return sortPages((await f.getDocs(f.collection(db, 'pages'))).docs.map(withId));
+}
+
+// data: exactly PAGE_KEYS. id omitted -> create with auto id. Returns the id.
+export async function saveInfoPage(id, data) {
+  const keys = Object.keys(data);
+  if (keys.length !== PAGE_KEYS.length || keys.some((k) => !PAGE_KEYS.includes(k))) {
+    throw new Error(`saveInfoPage: keys must be ${PAGE_KEYS.join(', ')}`);
+  }
+  const ref = id ? f.doc(db, 'pages', id) : f.doc(f.collection(db, 'pages'));
+  await f.setDoc(ref, data);
+  return ref.id;
+}
+
+// New id without writing (so images can be uploaded under pages/<id>/ before the first save).
+export function newInfoPageId() {
+  return f.doc(f.collection(db, 'pages')).id;
+}
+
+// Creates the given titles as hidden pages after the current last order, in one batch.
+export async function createInfoPages(titles, startOrder) {
+  const batch = f.writeBatch(db);
+  titles.forEach((title, i) => {
+    batch.set(f.doc(f.collection(db, 'pages')), { title, bodyHtml: '', order: startOrder + i, published: false });
+  });
+  await batch.commit();
+}
+
+export async function deleteInfoPage(id) {
+  await f.deleteDoc(f.doc(db, 'pages', id));
+  try {
+    await deleteMedia({ prefix: `pages/${id}/` });
+  } catch (e) {
+    console.error('deleteInfoPage: could not delete media', e);
+  }
 }

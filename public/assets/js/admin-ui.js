@@ -9,6 +9,7 @@ export const MENU_ITEMS = {
   staff: { label: 'บุคลากร', href: '/admin/staff.html' },
   departments: { label: 'กลุ่มสาระ/ฝ่ายงาน', href: '/admin/departments.html' },
   documents: { label: 'เอกสาร', href: '/admin/documents.html' },
+  pages: { label: 'ข้อมูลสถานศึกษา', href: '/admin/pages.html' },
   users: { label: 'ผู้ใช้และสิทธิ์', href: '/admin/users.html' },
   settings: { label: 'ตั้งค่าเว็บไซต์', href: '/admin/settings.html' },
 };

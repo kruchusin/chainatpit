@@ -14,7 +14,7 @@ export function parseMediaPath(path) {
   if (parts.length === 3) {
     const [kind, id, file] = parts;
     if (!ID_RE.test(id) || !isFile(file)) return null;
-    if (kind === 'news' || kind === 'departments') return { kind, id, file };
+    if (kind === 'news' || kind === 'departments' || kind === 'pages') return { kind, id, file };
     if (kind === 'staff' && file === 'photo.jpg') return { kind, id, file };
   }
   return null;
@@ -22,12 +22,12 @@ export function parseMediaPath(path) {
 
 export function parseMediaPrefix(prefix) {
   if (typeof prefix !== 'string' || prefix.includes('%')) return null;
-  const m = /^(news|departments)\/([^/]+)\/$/.exec(prefix);
+  const m = /^(news|departments|pages)\/([^/]+)\/$/.exec(prefix);
   return m && ID_RE.test(m[2]) ? { kind: m[1], id: m[2] } : null;
 }
 
 export function targetDocPath(parsed) {
-  if (!parsed || parsed.kind === 'site') return null;
+  if (!parsed || parsed.kind === 'site' || parsed.kind === 'pages') return null;
   return `${parsed.kind}/${parsed.id}`;
 }
 
@@ -44,6 +44,8 @@ export function canWriteMedia(user, parsed, targetDoc, uid, { forDelete = false 
       return isAdmin;
     case 'departments':
       return isAdmin || prDepts.includes(parsed.id);
+    case 'pages':
+      return isCentral;
     case 'news': {
       if (isCentral) return true; // covers forDelete with the news doc already gone
       if (!targetDoc) return false;

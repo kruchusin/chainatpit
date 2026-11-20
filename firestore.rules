@@ -218,6 +218,24 @@ service cloud.firestore {
       allow delete: if isActive() && canDeleteScoped(docIds(resource.data));
     }
 
+    // ---------- pages (sub-pages of "ข้อมูลสถานศึกษา") ----------
+    match /pages/{id} {
+      function pageOk() {
+        let d = request.resource.data;
+        return d.keys().hasOnly(['title', 'bodyHtml', 'order', 'published'])
+          && d.keys().hasAll(['title', 'bodyHtml', 'order', 'published'])
+          && d.title is string && d.title.size() > 0 && d.title.size() <= 100
+          && d.bodyHtml is string && d.bodyHtml.size() <= 500000
+          && d.order is int
+          && d.published is bool;
+      }
+
+      // public sees published pages (list queries must filter published == true); editors see all
+      allow read: if resource.data.published == true || isCentral();
+      allow create, update: if isCentral() && pageOk();
+      allow delete: if isCentral();
+    }
+
     // default deny: anything not matched above
     match /{document=**} {
       allow read, write: if false;

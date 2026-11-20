@@ -50,6 +50,7 @@ main.container { padding-top: 1.25rem; padding-bottom: 2.5rem; min-height: 60vh;
   .has-dropdown { position: relative; }
   .dropdown { position: absolute; right: 0; top: 100%; min-width: 240px; background: var(--color-primary); border: 1px solid rgba(255,255,255,.25); border-radius: 0 0 var(--radius) var(--radius); padding: .4rem .75rem; z-index: 50; }
   .dropdown a { white-space: normal; }
+  .dropdown-start > .dropdown { right: auto; left: 0; min-width: 280px; }
 }
 
 /* hero + sections */
@@ -85,6 +86,9 @@ select { padding: .5rem .6rem; border: 1px solid var(--color-border); border-rad
 .article { background: var(--color-surface); border-radius: var(--radius); padding: 1.25rem 1rem; border: 1px solid var(--color-border); overflow-wrap: anywhere; }
 .news-cover { width: 100%; border-radius: var(--radius); margin: .5rem 0 1rem; }
 .news-body img { margin: 1rem auto; }
+.news-body { overflow-x: auto; }
+.news-body table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+.news-body td, .news-body th { border: 1px solid var(--color-border); padding: .4rem .6rem; vertical-align: top; min-width: 3rem; }
 .news-body iframe { width: 100%; aspect-ratio: 16 / 9; height: auto; border: 0; }
 .news-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .5rem; margin: 1rem 0; }
 .news-gallery img { aspect-ratio: 4 / 3; object-fit: cover; width: 100%; border-radius: 6px; }
@@ -142,3 +146,6 @@ select { padding: .5rem .6rem; border: 1px solid var(--color-border); border-rad
 .banner-slide { flex: 0 0 100%; scroll-snap-align: start; min-width: 0; }
 .banner-slide img { display: block; width: 100%; height: auto; max-height: 360px; object-fit: cover; border-radius: var(--radius); }
 .banner-single { overflow: visible; }
+.topic-list { list-style: none; padding: 0; display: grid; gap: .5rem; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+.topic-list a { display: block; padding: .75rem 1rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); text-decoration: none; }
+.topic-list a:hover { border-color: var(--color-primary); }
