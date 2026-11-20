@@ -3,10 +3,11 @@
 //   node scripts/import-legacy.mjs --staff migration/out/staff-math.json --dept math --commit --yes
 // --dry-run is the default (prints what would be written). --commit writes. Real project needs --commit --yes
 // and GOOGLE_APPLICATION_CREDENTIALS. --overwrite replaces existing docs (default: skip, so re-running is safe).
-// Images go to R2 (env R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET) and Firestore stores
+// Images go to R2 (env R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, optional R2_BUCKET = chainatpit-media) and Firestore stores
 // '/media/<path>?v=<ms>'. With --emulator images are written to migration/out/media/<path> instead (no R2 needed).
 // Run from the repo root. Never writes phone numbers.
-import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { initializeApp, applicationDefault } from 'firebase-admin/app';
@@ -14,7 +15,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { JSDOM } from 'jsdom';
 import createDOMPurify from 'dompurify';
 import { createSanitizer } from '../public/assets/js/lib/sanitize.js';
-import { newsId, staffId, mediaUrl } from '../migration/lib/ids.mjs';
+import { newsId, staffId, mediaUrl, localMediaPath } from '../migration/lib/ids.mjs';
 import { buildNewsDoc, buildStaffDoc, findPhones } from '../migration/lib/docs.mjs';
 import { findThaiDate } from '../migration/lib/thai-date.mjs';
 import { uploadAll } from '../migration/lib/uploads.mjs';
@@ -54,20 +55,20 @@ if (emulator) {
   initializeApp({ projectId: project });
   if (commit) {
     putObject = async (path, jpeg) => {
-      const file = new URL(path, `file://${LOCAL_MEDIA_DIR}`).pathname;
-      mkdirSync(dirname(file), { recursive: true });
-      writeFileSync(file, jpeg);
+      const file = localMediaPath(LOCAL_MEDIA_DIR, path);
+      await mkdir(dirname(file), { recursive: true });
+      await writeFile(file, jpeg);
     };
     console.log(`--emulator: รูปจะถูกเขียนลง ${LOCAL_MEDIA_DIR}<path> ไม่ได้ส่งขึ้น R2`);
     console.log('คำแนะนำ: โฟลเดอร์นี้ใช้ตรวจรูปด้วยตาเท่านั้น ถ้าต้องการให้เว็บบนเครื่องแสดงรูป ต้องนำไฟล์เข้า R2 จำลองของ wrangler เอง');
   }
 } else if (commit) {
   console.warn(`คำเตือน: จะเขียนข้อมูลลงโปรเจกต์จริง "${REAL_PROJECT}"`);
+  const R2_REQUIRED = ['R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY']; // R2_BUCKET optional
+  const missing = R2_REQUIRED.filter((n) => !process.env[n]);
+  if (missing.length) die(`ต้องตั้งค่าตัวแปร R2 ให้ครบก่อน ยังขาด: ${missing.join(', ')} (ดู README หัวข้อ "R2 API token สำหรับย้ายข้อมูล")`);
   if (!flag('--yes')) die('ปฏิเสธการทำงาน: ต้องเพิ่ม --yes เพื่อยืนยันการเขียนลงโปรเจกต์จริง (หรือใช้ --emulator)');
   if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) die('ต้องตั้งค่า GOOGLE_APPLICATION_CREDENTIALS ก่อน');
-  const R2_VARS = ['R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET'];
-  const missing = R2_VARS.filter((n) => !process.env[n]);
-  if (missing.length) die(`ต้องตั้งค่าตัวแปร R2 ให้ครบก่อน ยังขาด: ${missing.join(', ')} (ดู README หัวข้อ "R2 API token สำหรับย้ายข้อมูล")`);
   initializeApp({ projectId: project, credential: applicationDefault() });
   // loaded only here so dry-run and --emulator work without @aws-sdk/client-s3 installed
   const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
@@ -76,7 +77,7 @@ if (emulator) {
     endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
     credentials: { accessKeyId: process.env.R2_ACCESS_KEY_ID, secretAccessKey: process.env.R2_SECRET_ACCESS_KEY },
   });
-  const r2Bucket = process.env.R2_BUCKET;
+  const r2Bucket = process.env.R2_BUCKET || 'chainatpit-media';
   putObject = (path, jpeg) => s3.send(new PutObjectCommand({
     Bucket: r2Bucket, Key: path, Body: jpeg, ContentType: 'image/jpeg',
     CacheControl: 'public, max-age=31536000, immutable',

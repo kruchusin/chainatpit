@@ -70,7 +70,7 @@ node scripts/import-legacy.mjs --news migration/out/news-2569.json --year 2569 -
 node scripts/import-legacy.mjs --staff migration/out/staff-math.json --dept math --emulator --commit
 ```
 
-เมื่อพอใจแล้วจึงทำกับโปรเจกต์จริง ต้องตั้ง `GOOGLE_APPLICATION_CREDENTIALS`, ใส่ `--yes` และตั้งตัวแปร R2 ทั้ง 4 ตัว (`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`) วิธีสร้าง token ดูที่ [README หลัก](../README.md) หัวข้อ "R2 API token สำหรับย้ายข้อมูล":
+เมื่อพอใจแล้วจึงทำกับโปรเจกต์จริง ต้องตั้ง `GOOGLE_APPLICATION_CREDENTIALS`, ใส่ `--yes` และตั้งตัวแปร R2 (`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` จำเป็น, `R2_BUCKET` ไม่บังคับ ค่าเริ่มต้น `chainatpit-media`) วิธีสร้าง token ดูที่ [README หลัก](../README.md) หัวข้อ "R2 API token สำหรับย้ายข้อมูล":
 
 ```
 node scripts/import-legacy.mjs --news migration/out/news-2569.json --year 2569                       # dry-run ไม่ต้องใช้สิทธิ์

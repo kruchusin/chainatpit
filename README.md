@@ -62,7 +62,8 @@ java -version
    เลือก location **`asia-southeast1` (สิงคโปร์)** แล้วเริ่มด้วย Production mode (กฎจริงจะถูก deploy ในข้อ 2.4 ด้านล่าง)
    **อย่าไปใช้ Realtime Database ที่มีอยู่เดิม**
 2. **เปิดล็อกอินด้วยอีเมล** เมนู Build -> Authentication -> Get started -> Sign-in method -> Email/Password -> Enable
-> **Firebase ใช้แผน Spark (ฟรี) ได้เลย ไม่ต้องอัปเกรดเป็น Blaze และไม่ต้องผูกบัตร** เพราะรูปภาพไม่ได้เก็บใน Firebase แล้ว แต่เก็บใน Cloudflare R2 (ดูข้อ 6.1)
+
+   > **Firebase ใช้แผน Spark (ฟรี) ได้เลย ไม่ต้องอัปเกรดเป็น Blaze และไม่ต้องผูกบัตร** เพราะรูปภาพไม่ได้เก็บใน Firebase แล้ว แต่เก็บใน Cloudflare R2 (ดูข้อ 6.1)
 
 3. **คัดลอกค่า Web app config** ไปใส่ในโค้ด
    Project settings (รูปเฟือง) -> General -> Your apps -> ถ้ายังไม่มีให้กดสร้าง Web app (ไอคอน `</>`) แล้วคัดลอกค่าจาก `firebaseConfig`
@@ -147,6 +148,7 @@ npm test
    npm run dev
    ```
 
+   คำสั่งนี้รัน R2 จำลองบนเครื่องให้ (`wrangler pages dev ... --r2=MEDIA`) รูปที่อัปโหลดตอนทดลองจึงไม่ไปปนกับ R2 จริง
    แล้วเปิด http://localhost:8788 (หลังบ้านที่ http://localhost:8788/admin/login.html)
 
 บัญชีทดสอบ (รหัสผ่านทุกบัญชี `password123`)
@@ -271,7 +273,7 @@ Firebase console -> Authentication -> Settings -> Authorized domains -> Add doma
 1. Cloudflare dashboard -> R2 Object Storage -> **Manage API Tokens** -> Create API token
 2. สิทธิ์: **Object Read & Write** เลือกเฉพาะ bucket `chainatpit-media`
 3. กดสร้าง แล้วจดค่า **Access Key ID**, **Secret Access Key** (แสดงครั้งเดียว) และ **Account ID** (อยู่ในหน้า R2 ด้านขวา)
-4. ตั้งตัวแปร 4 ตัวในหน้าต่างที่จะรันสคริปต์ (ตั้งใหม่ทุกครั้งที่เปิดหน้าต่างใหม่)
+4. ตั้งตัวแปรในหน้าต่างที่จะรันสคริปต์ (ตั้งใหม่ทุกครั้งที่เปิดหน้าต่างใหม่)
 
 **Command Prompt (cmd)**
 
@@ -292,7 +294,8 @@ $env:R2_BUCKET = "chainatpit-media"
 ```
 
 > **คำเตือน:** Secret Access Key เป็นความลับ ห้ามเขียนลงไฟล์ในโปรเจกต์หรืออัปโหลดขึ้น GitHub ถ้าหลุดให้ลบ token นั้นทิ้งแล้วสร้างใหม่
-> ถ้าตัวแปรไม่ครบ สคริปต์จะแจ้งชื่อตัวแปรที่ขาดและหยุดทำงาน (dry-run และ `--emulator` ไม่ต้องใช้ตัวแปรเหล่านี้)
+> ตัวแปรที่จำเป็นคือ `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` ส่วน `R2_BUCKET` **ไม่บังคับ** ถ้าไม่ตั้งจะใช้ `chainatpit-media`
+> ถ้าตัวแปรที่จำเป็นไม่ครบ สคริปต์จะแจ้งชื่อตัวแปรที่ขาดและหยุดทำงาน (dry-run และ `--emulator` ไม่ต้องใช้ตัวแปรเหล่านี้)
 
 ### ลิงก์เก่าของ Google Sites (`public/_redirects`)
 
@@ -372,6 +375,7 @@ $env:R2_BUCKET = "chainatpit-media"
 | Console ขึ้น **"The query requires an index"** พร้อมลิงก์ยาว | กดลิงก์นั้น (ล็อกอิน Firebase แล้ว) แล้วกด Create index รอจนสถานะเป็น Enabled หรือรัน `npx firebase deploy --only firestore --project chainatpit-a8c9c` เพื่อ deploy จาก `firestore.indexes.json` (ถ้าต้องเพิ่มดัชนี ให้เพิ่มในไฟล์นั้นด้วยเพื่อไม่ให้หายตอน deploy ครั้งถัดไป) |
 | Functions ตอบ **401** (`UNAUTHENTICATED`) | ไม่ได้ล็อกอินหรือ token หมดอายุ/ผิด ให้ออกจากระบบแล้วเข้าใหม่ และตรวจว่า `FIREBASE_PROJECT_ID` ใน Pages ตรงกับ `chainatpit-a8c9c` |
 | Functions ตอบ **403** (`FORBIDDEN`) | บัญชีนี้ไม่ใช่แอดมิน หรือถูกปิดใช้งาน (การจัดการผู้ใช้ทำได้เฉพาะแอดมิน) |
+| รูปขึ้น **404** หรืออัปโหลดรูปแล้วได้ **500** | ตรวจว่า Pages ผูก R2 bucket `chainatpit-media` ด้วยชื่อตัวแปร `MEDIA` ครบทั้ง Production และ Preview (ข้อ 6.1) แล้วกด Redeploy |
 | Functions ตอบ **500** หรือสร้างบัญชีไม่ได้ | ตรวจ `FIREBASE_SERVICE_ACCOUNT` ใน Pages: ต้องเป็น JSON ทั้งไฟล์ครบทุกบรรทัด ไม่ใช่เฉพาะบางส่วน และได้กด Retry deployment หลังแก้แล้ว |
 | หน้าข่าวแชร์ Facebook ไม่ขึ้นรูป/ชื่อ | ตรวจ `FIREBASE_API_KEY` ใน Pages และว่า API key ไม่ได้ถูกจำกัด HTTP referrer (เซิร์ฟเวอร์ Cloudflare เรียกโดยไม่มี referrer จึงจะถูกปฏิเสธ) แล้วกด Scrape Again ใน Sharing Debugger |
 | ล็อกอินไม่ได้บนโดเมนจริง | ยังไม่ได้เพิ่ม Authorized domains (ข้อ 8) |
