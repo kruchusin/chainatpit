@@ -11,7 +11,7 @@
 npm install
 ```
 
-(ต้องมี `node-html-parser`, `sharp`, `jsdom`, `dompurify` ซึ่งอยู่ใน devDependencies แล้ว)
+(ต้องมี `node-html-parser`, `sharp`, `jsdom`, `dompurify` และ `@aws-sdk/client-s3` ซึ่งอยู่ใน devDependencies แล้ว)
 
 ## 1. เก็บ fixture และเติมตัวเลขใน test (ทำครั้งเดียว)
 
@@ -62,7 +62,7 @@ general, executive, guidance, office, support
 
 ## 3. Import
 
-ทดสอบกับ emulator ก่อน (เปิด `firebase emulators:start --only firestore,storage` ไว้):
+ทดสอบกับ emulator ก่อน (เปิด `firebase emulators:start --only firestore` ไว้) โหมด `--emulator` เขียนเอกสารลง Firestore จำลอง ส่วนรูปจะถูกบันทึกเป็นไฟล์ที่ `migration/out/media/<path>` ไม่ได้ส่งขึ้น R2 (ไม่ต้องตั้งตัวแปร R2):
 
 ```
 node scripts/import-legacy.mjs --news migration/out/news-2569.json --year 2569 --emulator            # dry-run (ค่าเริ่มต้น)
@@ -70,24 +70,22 @@ node scripts/import-legacy.mjs --news migration/out/news-2569.json --year 2569 -
 node scripts/import-legacy.mjs --staff migration/out/staff-math.json --dept math --emulator --commit
 ```
 
-เมื่อพอใจแล้วจึงทำกับโปรเจกต์จริง (ต้องตั้ง `GOOGLE_APPLICATION_CREDENTIALS` และต้องใส่ `--yes`):
+เมื่อพอใจแล้วจึงทำกับโปรเจกต์จริง ต้องตั้ง `GOOGLE_APPLICATION_CREDENTIALS`, ใส่ `--yes` และตั้งตัวแปร R2 ทั้ง 4 ตัว (`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`) วิธีสร้าง token ดูที่ [README หลัก](../README.md) หัวข้อ "R2 API token สำหรับย้ายข้อมูล":
 
 ```
 node scripts/import-legacy.mjs --news migration/out/news-2569.json --year 2569                       # dry-run ไม่ต้องใช้สิทธิ์
 node scripts/import-legacy.mjs --news migration/out/news-2569.json --year 2569 --commit --yes
 ```
 
-ตัวเลือก: `--overwrite` เขียนทับเอกสารที่มีอยู่ทั้งเอกสาร **การแก้ไขที่ผู้ดูแลทำผ่านหน้าหลังบ้านจะหายหมด** (ค่าเริ่มต้นคือข้าม จึงรันซ้ำได้อย่างปลอดภัย),
-`--bucket <ชื่อ>` ถ้า Storage bucket ไม่ใช่ค่าเริ่มต้น
-(`chainatpit-a8c9c.firebasestorage.app`, emulator ใช้ `demo-chainatpit.appspot.com`)
+ตัวเลือก: `--overwrite` เขียนทับเอกสารที่มีอยู่ทั้งเอกสาร **การแก้ไขที่ผู้ดูแลทำผ่านหน้าหลังบ้านจะหายหมด** (ค่าเริ่มต้นคือข้าม จึงรันซ้ำได้อย่างปลอดภัย)
 
 dry-run กับโปรเจกต์จริงไม่เชื่อมต่อ Firebase จึงไม่เช็กว่าเอกสารมีอยู่แล้วหรือไม่
 (กับ `--emulator` เช็กให้)
 
 ถ้าดาวน์โหลด/อัปโหลดรูปของรายการใดล้มเหลว สคริปต์จะ **ไม่เขียนเอกสารนั้น** และสรุป id ที่ล้มเหลวตอนท้าย (exit code 1) ให้รันคำสั่งเดิมซ้ำ (ไม่ต้องใส่ `--overwrite`) เพื่อลองใหม่เฉพาะรายการที่ยังไม่มี
 
-สิ่งที่สคริปต์ทำ: ดาวน์โหลดรูป ย่อให้ด้านยาวไม่เกิน 1600px เป็น JPEG ไม่เกิน 2 MB อัปโหลดไป
-`news/{id}/legacy-<n>.jpg` และ `staff/{id}/photo.jpg` แล้วเก็บ URL แบบเต็มลงเอกสาร
+สิ่งที่สคริปต์ทำ: ดาวน์โหลดรูป ย่อให้ด้านยาวไม่เกิน 1600px เป็น JPEG ไม่เกิน 2 MB อัปโหลดเข้า R2 (bucket `chainatpit-media`) ที่
+`news/{id}/legacy-<n>.jpg` และ `staff/{id}/photo.jpg` แล้วเก็บ URL แบบสัมพัทธ์ `/media/<path>?v=<เวลา>` ลงเอกสาร
 id คือ 20 ตัวแรกของ sha256 (ข่าว: `title|วันที่`, บุคลากร: `dept|name`)
 
 ## หมายเหตุ

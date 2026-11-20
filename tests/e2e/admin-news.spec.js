@@ -32,7 +32,7 @@ test('prMath creates math news with cover; appears on home', async ({ page }) =>
   await page.getByLabel('เผยแพร่').check();
   await page.getByRole('button', { name: 'บันทึก' }).click();
   await expect(page.locator('#edit-notice')).toHaveText('บันทึกเรียบร้อยแล้ว');
-  await expect(page.locator('#cover-preview')).toHaveAttribute('src', /news%2F.+%2F.+\.jpg/);
+  await expect(page.locator('#cover-preview')).toHaveAttribute('src', /\/media\/news\/.+\/.+\.jpg/);
   await page.goto('/');
   await expect(page.locator('#latest-news .news-card', { hasText: 'ข่าวคณิต e2e' })).toBeVisible();
 });

@@ -56,7 +56,7 @@ test('t1 edits bio+photo; public staff page reflects', async ({ page }) => {
   await page.goto('/staff.html');
   const card = page.locator('.staff-card', { hasText: 'สมชาย ใจดี' });
   await expect(card).toContainText('ค.บ. คณิตศาสตร์ (e2e)');
-  await expect(card.locator('img')).toHaveAttribute('src', /staff%2Fs1%2Fphoto\.jpg/);
+  await expect(card.locator('img')).toHaveAttribute('src', /\/media\/staff\/s1\/photo\.jpg/);
 });
 
 test('disabled user is signed out with message', async ({ page }) => {

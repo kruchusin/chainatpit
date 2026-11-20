@@ -137,7 +137,7 @@ export async function getNewsForEditor(id) {
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
-// Creates an unpublished draft so the media API (news doc must exist) accept image uploads. Returns the id.
+// Creates an unpublished draft so the media API (news doc must exist) accepts image uploads. Returns the id.
 // pinned:false is written explicitly: the public home query orders by pinned, which skips docs lacking the field.
 export async function createDraftNews(profile, departmentIds) {
   const ref = f.doc(f.collection(db, 'news'));

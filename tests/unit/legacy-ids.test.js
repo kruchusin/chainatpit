@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createHash } from 'node:crypto';
-import { newsId, staffId, storageDownloadUrl } from '../../migration/lib/ids.mjs';
+import { newsId, staffId, mediaUrl } from '../../migration/lib/ids.mjs';
 
 const h = (s) => createHash('sha256').update(s).digest('hex').slice(0, 20);
 
@@ -19,8 +19,8 @@ describe('legacy ids', () => {
     expect(staffId('math', 'สมชาย ใจดี')).toBe(h('math|สมชาย ใจดี'));
     expect(staffId('math', 'x')).not.toBe(staffId('sci', 'x'));
   });
-  it('storageDownloadUrl builds an absolute, encoded URL', () => {
-    const u = storageDownloadUrl('https://firebasestorage.googleapis.com', 'b.app', 'news/abc/legacy-1.jpg', 'tok');
-    expect(u).toBe('https://firebasestorage.googleapis.com/v0/b/b.app/o/news%2Fabc%2Flegacy-1.jpg?alt=media&token=tok');
+  it('mediaUrl builds a relative /media URL with cache-bust version', () => {
+    expect(mediaUrl('news/a1/legacy-1.jpg', 5)).toBe('/media/news/a1/legacy-1.jpg?v=5');
+    expect(mediaUrl('staff/s1/photo.jpg', 1700000000000)).toBe('/media/staff/s1/photo.jpg?v=1700000000000');
   });
 });

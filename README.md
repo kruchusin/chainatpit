@@ -10,7 +10,8 @@
 | ส่วน | ใช้ทำอะไร |
 |---|---|
 | Cloudflare Pages | เก็บและเสิร์ฟเว็บไซต์ (ฟรี) รวมถึงโฟลเดอร์ `functions/` |
-| Firebase (โปรเจกต์ `chainatpit-a8c9c`) | ฐานข้อมูล Firestore, ระบบล็อกอิน, ที่เก็บรูป (Storage) |
+| Firebase (โปรเจกต์ `chainatpit-a8c9c`) | ฐานข้อมูล Firestore และระบบล็อกอิน (ใช้แผน Spark ฟรีได้ ไม่ต้องผูกบัตร) |
+| Cloudflare R2 (bucket `chainatpit-media`) | เก็บรูปภาพทั้งหมด (ข่าว บุคลากร ฝ่าย) เสิร์ฟผ่านที่อยู่ `/media/...` ของเว็บเอง |
 | GitHub | เก็บไฟล์ของเว็บ เมื่อมีการอัปเดต Cloudflare จะนำไปเผยแพร่ให้เอง |
 
 แผนผังโฟลเดอร์
@@ -18,12 +19,12 @@
 ```
 public/            เว็บไซต์ทั้งหมด (หน้า .html, assets/, admin/ = หลังบ้าน, _redirects = ลิงก์เก่า -> ใหม่)
 functions/         โค้ดฝั่งเซิร์ฟเวอร์ของ Cloudflare (api/admin/users.js = จัดการบัญชีผู้ใช้,
-                   news/[id].js = หน้าข่าวพร้อมข้อมูลสำหรับแชร์ Facebook)
+                   news/[id].js = หน้าข่าวพร้อมข้อมูลสำหรับแชร์ Facebook,
+                   api/media.js = อัปโหลด/ลบรูปใน R2, media/ = เสิร์ฟรูปจาก R2 ที่ /media/...)
 scripts/           seed.mjs (ใส่ข้อมูลเริ่มต้น/สร้างแอดมินคนแรก), gen-redirects.mjs, import-legacy.mjs
 migration/         เครื่องมือย้ายข้อมูลจากเว็บเดิม (อ่านไฟล์ migration/README.md)
 tests/             unit/ (ทดสอบฟังก์ชัน), rules/ (ทดสอบกฎความปลอดภัย), e2e/ (ทดสอบเปิดเบราว์เซอร์จริง)
 firestore.rules    กฎว่าใครอ่าน/เขียนข้อมูลอะไรได้
-storage.rules      กฎของที่เก็บรูป
 firestore.indexes.json  ดัชนีที่ Firestore ต้องใช้
 firebase.json      ตั้งค่า Firebase (deploy กฎ/ดัชนี และ emulator สำหรับทดสอบ)
 package.json       รายการคำสั่งและเครื่องมือทดสอบ
@@ -58,15 +59,12 @@ java -version
 เข้า https://console.firebase.google.com แล้วเลือกโปรเจกต์ `chainatpit-a8c9c`
 
 1. **สร้าง Cloud Firestore** เมนู Build -> Firestore Database -> Create database
-   เลือก location **`asia-southeast1` (สิงคโปร์)** แล้วเริ่มด้วย Production mode (กฎจริงจะถูก deploy ในข้อ 2.6 ด้านล่าง)
+   เลือก location **`asia-southeast1` (สิงคโปร์)** แล้วเริ่มด้วย Production mode (กฎจริงจะถูก deploy ในข้อ 2.4 ด้านล่าง)
    **อย่าไปใช้ Realtime Database ที่มีอยู่เดิม**
 2. **เปิดล็อกอินด้วยอีเมล** เมนู Build -> Authentication -> Get started -> Sign-in method -> Email/Password -> Enable
-3. **อัปเกรดเป็นแพ็กเกจ Blaze** (จ่ายตามการใช้งาน จำเป็นเพราะที่เก็บรูป Storage รุ่นใหม่ต้องใช้ Blaze)
-   แล้ว **ตั้ง Budget alert ที่ 100 บาท** ที่ Google Cloud Console -> Billing -> Budgets & alerts -> Create budget
-   (ใส่จำนวนเงิน 100 บาท และเปิดการแจ้งเตือนทางอีเมล) โรงเรียนขนาดนี้โดยปกติอยู่ในโควตาฟรี แต่ตั้งไว้กันเหนียว
-4. **สร้าง Storage bucket** เมนู Build -> Storage -> Get started เลือก location ใกล้ที่สุด (เช่น `asia-southeast1`)
-   ชื่อ bucket ควรเป็น `chainatpit-a8c9c.firebasestorage.app`
-5. **คัดลอกค่า Web app config** ไปใส่ในโค้ด
+> **Firebase ใช้แผน Spark (ฟรี) ได้เลย ไม่ต้องอัปเกรดเป็น Blaze และไม่ต้องผูกบัตร** เพราะรูปภาพไม่ได้เก็บใน Firebase แล้ว แต่เก็บใน Cloudflare R2 (ดูข้อ 6.1)
+
+3. **คัดลอกค่า Web app config** ไปใส่ในโค้ด
    Project settings (รูปเฟือง) -> General -> Your apps -> ถ้ายังไม่มีให้กดสร้าง Web app (ไอคอน `</>`) แล้วคัดลอกค่าจาก `firebaseConfig`
    เปิดไฟล์ `public/assets/js/firebase.js` แล้วแทนค่า placeholder **3 ตัว** นี้เท่านั้น
 
@@ -76,19 +74,18 @@ java -version
    | `REPLACE_WITH_MESSAGING_SENDER_ID` | `messagingSenderId` |
    | `REPLACE_WITH_APP_ID` | `appId` |
 
-   ค่า `authDomain`, `projectId`, `storageBucket` ถูกใส่ไว้ให้แล้ว ให้ตรวจว่าตรงกับของคุณ
-   (ค่าเหล่านี้ไม่ใช่ความลับ เป็นข้อมูลสาธารณะที่อยู่ในหน้าเว็บอยู่แล้ว ความปลอดภัยอยู่ที่กฎ Firestore/Storage)
-6. **Deploy กฎและดัชนี** เปิด PowerShell ในโฟลเดอร์โปรเจกต์
+   ค่า `authDomain`, `projectId` ถูกใส่ไว้ให้แล้ว ให้ตรวจว่าตรงกับของคุณ
+   (ค่าเหล่านี้ไม่ใช่ความลับ เป็นข้อมูลสาธารณะที่อยู่ในหน้าเว็บอยู่แล้ว ความปลอดภัยอยู่ที่กฎ Firestore)
+4. **Deploy กฎและดัชนี** เปิด PowerShell ในโฟลเดอร์โปรเจกต์
 
    ```
    npm install
    npx firebase login
-   npx firebase deploy --only firestore,storage --project chainatpit-a8c9c
+   npx firebase deploy --only firestore --project chainatpit-a8c9c
    ```
 
-   ครั้งแรกที่ deploy `storage` Firebase CLI จะถามว่าอนุญาตให้ Storage service agent อ่าน Firestore หรือไม่ (จำเป็นเพราะกฎ Storage ต้องอ่านข้อมูลข่าวใน Firestore) ให้ตอบ **Y**
-   คำสั่งนี้ส่ง `firestore.rules`, `firestore.indexes.json` และ `storage.rules` ขึ้นไป (ดัชนีใช้เวลาสร้างสักครู่ดูสถานะได้ใน Firestore -> Indexes)
-7. **สร้าง service account key** (ใช้ในข้อ 6 และ 7 ด้านล่าง) Project settings -> Service accounts -> Generate new private key
+   คำสั่งนี้ส่ง `firestore.rules` และ `firestore.indexes.json` ขึ้นไป (ดัชนีใช้เวลาสร้างสักครู่ ดูสถานะได้ใน Firestore -> Indexes)
+5. **สร้าง service account key** (ใช้ในข้อ 6 และ 7 ด้านล่าง) Project settings -> Service accounts -> Generate new private key
    จะได้ไฟล์ `.json` หนึ่งไฟล์ เก็บไว้ในที่ปลอดภัยนอกโฟลเดอร์โปรเจกต์ เช่น `C:\keys\chainatpit.key.json`
 
    > **คำเตือน: ห้าม commit หรืออัปโหลดไฟล์ key นี้ขึ้น GitHub เด็ดขาด** ใครได้ไฟล์นี้ไปจะเข้าถึงฐานข้อมูลทั้งหมดได้
@@ -109,7 +106,7 @@ npm test
 | คำสั่ง | ทดสอบอะไร | ต้องใช้ |
 |---|---|---|
 | `npm run test:unit` | ฟังก์ชันทั่วไป (วันที่ พ.ศ., สิทธิ์, sanitize, ย่อรูป, redirect ฯลฯ) | Node |
-| `npm run test:rules` | กฎความปลอดภัย Firestore/Storage | Java 21 |
+| `npm run test:rules` | กฎความปลอดภัย Firestore | Java 21 |
 | `npm run test:e2e` | เปิดเบราว์เซอร์จริงทดสอบหน้าเว็บและหลังบ้าน | Java 21 + Chromium |
 
 **ความจริงที่ต้องบอกตรงๆ:** ระหว่างพัฒนา เครื่องที่ใช้สร้างเว็บนี้ **ไม่มีอินเทอร์เน็ต** จึงติดตั้งแพ็กเกจไม่ได้
@@ -130,13 +127,12 @@ npm test
    FIREBASE_PROJECT_ID=demo-chainatpit
    FIRESTORE_EMULATOR_HOST=127.0.0.1:8080
    FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099
-   FIREBASE_STORAGE_EMULATOR_HOST=127.0.0.1:9199
    ```
 
 1. หน้าต่างที่ 1: เปิด emulator
 
    ```
-   npx firebase emulators:start --project demo-chainatpit --only auth,firestore,storage
+   npx firebase emulators:start --project demo-chainatpit --only auth,firestore
    ```
 
 2. หน้าต่างที่ 2: ใส่ข้อมูลตัวอย่าง
@@ -210,11 +206,25 @@ npm test
 > (หน้าข่าวแชร์ Facebook และการจัดการบัญชีผู้ใช้จะไม่ทำงาน) จึงต้องใช้วิธีเชื่อม GitHub ตามนี้เท่านั้น
 > ถ้าแก้ตัวแปรแล้วต้อง Deploy ใหม่ (Retry deployment) ค่าจึงจะมีผล
 
+### 6.1 เปิด Cloudflare R2 (ที่เก็บรูป) และผูกกับ Pages
+
+ทำหลังสร้างโปรเจกต์ Pages ในข้อ 6 แล้ว (ต้องทำก่อนทดลองอัปโหลดรูปบนเว็บจริง)
+
+1. Cloudflare dashboard -> **R2 Object Storage** -> กดเปิดใช้งาน R2 Cloudflare จะให้ **ผูกบัตรเพื่อยืนยันตัวตน** (ไม่เก็บเงินถ้าใช้ไม่เกินโควตาฟรีของ R2 ซึ่งโรงเรียนขนาดนี้ใช้ไม่ถึงโดยปกติ)
+2. กด **Create bucket** ตั้งชื่อ **`chainatpit-media`** (ชื่อนี้ต้องตรงตามนี้)
+3. ไปที่ Workers & Pages -> เลือกโปรเจกต์ Pages -> **Settings -> Bindings -> Add -> R2 bucket**
+   - **Variable name: `MEDIA`** (ต้องพิมพ์ตัวพิมพ์ใหญ่ตามนี้)
+   - R2 bucket: เลือก `chainatpit-media`
+   - ทำให้ครบทั้ง **Production และ Preview**
+4. กด **Redeploy** (Deployments -> ... -> Retry deployment) เพื่อให้การผูกมีผล
+
+ตรวจว่าใช้ได้: ล็อกอินหลังบ้านแล้วลองอัปโหลดรูปข่าว รูปต้องแสดงที่ที่อยู่แบบ `/media/news/...`
+
 ---
 
 ## 7. สร้างแอดมินคนแรก และใส่ข้อมูลเริ่มต้น
 
-ต้องทำบนเครื่องของคุณ โดยชี้ไปที่ไฟล์ key จากข้อ 2.7 (เปลี่ยนที่อยู่ไฟล์ให้ตรงกับของคุณ)
+ต้องทำบนเครื่องของคุณ โดยชี้ไปที่ไฟล์ key จากข้อ 2.5 (เปลี่ยนที่อยู่ไฟล์ให้ตรงกับของคุณ)
 
 **Command Prompt (cmd)**
 
@@ -253,6 +263,36 @@ Firebase console -> Authentication -> Settings -> Authorized domains -> Add doma
 ## 9. ย้ายเนื้อหาจากเว็บเดิม (Google Sites)
 
 อ่านขั้นตอนทั้งหมดที่ [`migration/README.md`](migration/README.md) (scrape -> ตรวจทานด้วยตา -> import แบบ dry-run -> import จริง)
+
+### R2 API token สำหรับย้ายข้อมูล
+
+สคริปต์นำเข้า (`scripts/import-legacy.mjs`) อัปโหลดรูปเข้า R2 ผ่านคีย์ API แยกต่างหาก ต้องทำเฉพาะตอนนำเข้าจริง (`--commit`)
+
+1. Cloudflare dashboard -> R2 Object Storage -> **Manage API Tokens** -> Create API token
+2. สิทธิ์: **Object Read & Write** เลือกเฉพาะ bucket `chainatpit-media`
+3. กดสร้าง แล้วจดค่า **Access Key ID**, **Secret Access Key** (แสดงครั้งเดียว) และ **Account ID** (อยู่ในหน้า R2 ด้านขวา)
+4. ตั้งตัวแปร 4 ตัวในหน้าต่างที่จะรันสคริปต์ (ตั้งใหม่ทุกครั้งที่เปิดหน้าต่างใหม่)
+
+**Command Prompt (cmd)**
+
+```
+set R2_ACCOUNT_ID=ใส่_account_id
+set R2_ACCESS_KEY_ID=ใส่_access_key_id
+set R2_SECRET_ACCESS_KEY=ใส่_secret_access_key
+set R2_BUCKET=chainatpit-media
+```
+
+**PowerShell**
+
+```
+$env:R2_ACCOUNT_ID = "ใส่_account_id"
+$env:R2_ACCESS_KEY_ID = "ใส่_access_key_id"
+$env:R2_SECRET_ACCESS_KEY = "ใส่_secret_access_key"
+$env:R2_BUCKET = "chainatpit-media"
+```
+
+> **คำเตือน:** Secret Access Key เป็นความลับ ห้ามเขียนลงไฟล์ในโปรเจกต์หรืออัปโหลดขึ้น GitHub ถ้าหลุดให้ลบ token นั้นทิ้งแล้วสร้างใหม่
+> ถ้าตัวแปรไม่ครบ สคริปต์จะแจ้งชื่อตัวแปรที่ขาดและหยุดทำงาน (dry-run และ `--emulator` ไม่ต้องใช้ตัวแปรเหล่านี้)
 
 ### ลิงก์เก่าของ Google Sites (`public/_redirects`)
 
@@ -313,7 +353,7 @@ Firebase console -> Authentication -> Settings -> Authorized domains -> Add doma
   (ต้องคงแอตทริบิวต์ `crossorigin="anonymous"` ไว้) **อย่าเดาค่าแฮช** ถ้าค่าผิดไลบรารีจะไม่โหลดเลย
 - [ ] **รัน `npm test` ผ่านทั้งหมด** (ข้อ 3) โดยเฉพาะ rules, e2e และ sanitize ที่ยังไม่เคยถูกรันจริง
 - [ ] **ตรวจข้อจำกัดที่ทราบแล้ว** (ออกแบบหรือยอมรับไว้โดยเจตนา)
-  - **รูปค้างใน Storage (orphan):** เมื่อลบข่าว/บุคลากร หรือเปลี่ยนรูป ไฟล์รูปเดิมอาจยังค้างใน Storage (เปลืองพื้นที่เล็กน้อย) ไม่มีระบบลบอัตโนมัติ ลบเองใน Firebase console -> Storage เป็นครั้งคราวได้
+  - **รูปค้างใน R2 (orphan):** เมื่อลบข่าว/บุคลากร หรือเปลี่ยนรูป ไฟล์รูปเดิมอาจยังค้างใน R2 (เปลืองพื้นที่เล็กน้อย) ไม่มีระบบลบอัตโนมัติ ลบเองที่ Cloudflare dashboard -> R2 -> `chainatpit-media` เป็นครั้งคราวได้
   - **ผู้ประชาสัมพันธ์ประจำฝ่ายดูร่างข่าวของฝ่ายอื่นได้ (เฉพาะการ list):** กฎ Firestore พิสูจน์ได้เพียงว่าเป็นผู้ประชาสัมพันธ์ จึงอนุญาตให้ผู้ประชาสัมพันธ์ฝ่ายใดก็ได้ query ดูร่างข่าวของฝ่ายอื่นได้ (หน้าหลังบ้านกรองให้เห็นเฉพาะฝ่ายตน) แต่แก้ไข/ลบข่าวฝ่ายอื่นไม่ได้ ยอมรับไว้เพราะเป็นบุคลากรภายใน
   - **ผู้ประชาสัมพันธ์ประจำฝ่ายดูรายชื่อบุคลากรที่ลาออก (`active: false`) ของฝ่ายอื่นได้** ด้วยเหตุผลเดียวกัน
   - **ข่าวที่นำเข้าจากเว็บเดิมไม่มีเจ้าของจริง** (`authorUid: 'legacy-import'`) หน้าหลังบ้านแสดงผู้เขียนไม่ได้ แก้ได้เฉพาะแอดมิน/ผู้ประชาสัมพันธ์ส่วนกลาง
@@ -328,13 +368,13 @@ Firebase console -> Authentication -> Settings -> Authorized domains -> Add doma
 
 | อาการ | สาเหตุ / วิธีแก้ |
 |---|---|
-| **`permission-denied`** / "ไม่มีสิทธิ์บันทึกข้อมูลนี้" | (1) ยังไม่ได้ deploy กฎ ให้รัน `npx firebase deploy --only firestore,storage --project chainatpit-a8c9c` (2) บัญชีไม่มีเอกสารใน `users` หรือถูกปิดใช้งาน หรือบทบาทไม่พอ ตรวจที่เมนู "ผู้ใช้และสิทธิ์" (3) ครูแก้ฟิลด์ที่ไม่อนุญาต (ครูแก้ได้เฉพาะ รูป ประวัติ วุฒิ อีเมล) (4) ข่าวที่ผู้ประชาสัมพันธ์ฝ่ายติ๊กฝ่ายที่ตนไม่ได้รับผิดชอบ |
+| **`permission-denied`** / "ไม่มีสิทธิ์บันทึกข้อมูลนี้" | (1) ยังไม่ได้ deploy กฎ ให้รัน `npx firebase deploy --only firestore --project chainatpit-a8c9c` (2) บัญชีไม่มีเอกสารใน `users` หรือถูกปิดใช้งาน หรือบทบาทไม่พอ ตรวจที่เมนู "ผู้ใช้และสิทธิ์" (3) ครูแก้ฟิลด์ที่ไม่อนุญาต (ครูแก้ได้เฉพาะ รูป ประวัติ วุฒิ อีเมล) (4) ข่าวที่ผู้ประชาสัมพันธ์ฝ่ายติ๊กฝ่ายที่ตนไม่ได้รับผิดชอบ |
 | Console ขึ้น **"The query requires an index"** พร้อมลิงก์ยาว | กดลิงก์นั้น (ล็อกอิน Firebase แล้ว) แล้วกด Create index รอจนสถานะเป็น Enabled หรือรัน `npx firebase deploy --only firestore --project chainatpit-a8c9c` เพื่อ deploy จาก `firestore.indexes.json` (ถ้าต้องเพิ่มดัชนี ให้เพิ่มในไฟล์นั้นด้วยเพื่อไม่ให้หายตอน deploy ครั้งถัดไป) |
 | Functions ตอบ **401** (`UNAUTHENTICATED`) | ไม่ได้ล็อกอินหรือ token หมดอายุ/ผิด ให้ออกจากระบบแล้วเข้าใหม่ และตรวจว่า `FIREBASE_PROJECT_ID` ใน Pages ตรงกับ `chainatpit-a8c9c` |
 | Functions ตอบ **403** (`FORBIDDEN`) | บัญชีนี้ไม่ใช่แอดมิน หรือถูกปิดใช้งาน (การจัดการผู้ใช้ทำได้เฉพาะแอดมิน) |
 | Functions ตอบ **500** หรือสร้างบัญชีไม่ได้ | ตรวจ `FIREBASE_SERVICE_ACCOUNT` ใน Pages: ต้องเป็น JSON ทั้งไฟล์ครบทุกบรรทัด ไม่ใช่เฉพาะบางส่วน และได้กด Retry deployment หลังแก้แล้ว |
 | หน้าข่าวแชร์ Facebook ไม่ขึ้นรูป/ชื่อ | ตรวจ `FIREBASE_API_KEY` ใน Pages และว่า API key ไม่ได้ถูกจำกัด HTTP referrer (เซิร์ฟเวอร์ Cloudflare เรียกโดยไม่มี referrer จึงจะถูกปฏิเสธ) แล้วกด Scrape Again ใน Sharing Debugger |
 | ล็อกอินไม่ได้บนโดเมนจริง | ยังไม่ได้เพิ่ม Authorized domains (ข้อ 8) |
-| เว็บขึ้นแต่ข้อมูลว่าง/ล็อกอินไม่ได้เลย | ยังไม่ได้แทน placeholder `REPLACE_WITH_...` ใน `public/assets/js/firebase.js` (ข้อ 2.5) |
+| เว็บขึ้นแต่ข้อมูลว่าง/ล็อกอินไม่ได้เลย | ยังไม่ได้แทน placeholder `REPLACE_WITH_...` ใน `public/assets/js/firebase.js` (ข้อ 2.3) |
 | `seed.mjs` ปฏิเสธการทำงาน | ต้องใส่ `--yes` และตั้ง `GOOGLE_APPLICATION_CREDENTIALS` ให้ถูก (ข้อ 7) |
 | ลิงก์ Google Sites เดิมเปิดแล้วเจอ 404 | slug ไม่ตรงกับที่คาดเดาไว้ ให้เพิ่มกฎใน `_redirects` (ข้อ 9) |

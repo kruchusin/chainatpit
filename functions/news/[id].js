@@ -29,7 +29,6 @@ export function buildOgTags({ title, description, image, url, siteName }) {
   return tags.join('');
 }
 
-// Pure string helper. A <title> in `tags` replaces the page's existing <title>.
 // Relative /media/... URLs become absolute (crawlers need it); only http(s) and single-slash paths pass.
 export function absoluteImage(raw, origin) {
   const v = String(raw || '');
@@ -38,6 +37,7 @@ export function absoluteImage(raw, origin) {
   return undefined;
 }
 
+// Pure string helper. A <title> in `tags` replaces the page's existing <title>.
 export function injectIntoHead(html, tags) {
   let out = html;
   if (/<title>/i.test(tags)) out = out.replace(/<title>[\s\S]*?<\/title>/i, '');
