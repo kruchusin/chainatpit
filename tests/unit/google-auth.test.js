@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   verifyFirebaseIdToken, AuthError, getAccessToken, decodeFields, encodeFields,
-  firestoreGet, firestorePatch, requireAdmin, identityToolkitBase, isEmulator, _resetCaches,
+  firestoreGet, firestorePatch, requireAdmin, authenticate, identityToolkitBase, isEmulator, _resetCaches,
 } from '../../functions/_lib/google-auth.js';
 
 import { P, T, NOW, JWKS_URL, kp, jwk, sign, good, makeServiceAccountPem } from './helpers/auth-fixtures.js';
@@ -233,6 +233,60 @@ describe('requireAdmin', () => {
     const e = { ...env(), FIREBASE_AUTH_EMULATOR_HOST: 'h:9099', FIRESTORE_EMULATOR_HOST: 'h:8080' };
     const r = await caught(requireAdmin(req(unsigned(good())), e, { fetchFn: router({ role: 'admin' }), now: NOW }));
     expect(r.status).toBe(401);
+  });
+});
+
+describe('authenticate', () => {
+  let saPem;
+  beforeEach(async () => { saPem = await makeServiceAccountPem(); });
+  const env = () => ({ FIREBASE_PROJECT_ID: P, FIREBASE_SERVICE_ACCOUNT: JSON.stringify({ client_email: 'sa@x', private_key: saPem }) });
+  const req = (token) => new Request('https://x/api', { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  const router = (userDoc) => vi.fn(async (url) => {
+    url = String(url);
+    if (url === JWKS_URL) return new Response(JSON.stringify({ keys: [jwk] }), { status: 200, headers: { 'cache-control': 'max-age=3600' } });
+    if (url === 'https://oauth2.googleapis.com/token') return new Response(JSON.stringify({ access_token: 'AT', expires_in: 3600 }), { status: 200 });
+    if (url.includes('/documents/users/u1')) {
+      return userDoc ? new Response(JSON.stringify({ fields: encodeFields(userDoc) }), { status: 200 }) : new Response('', { status: 404 });
+    }
+    return new Response('?', { status: 500 });
+  });
+  const caught = (p) => p.then(() => null, (e) => e);
+
+  it('returns uid, user, token, project and host', async () => {
+    const out = await authenticate(req(await sign(good())), env(), { fetchFn: router({ role: 'teacher' }), now: NOW });
+    expect(out).toEqual({ uid: 'u1', accessToken: 'AT', user: { role: 'teacher' }, projectId: P, firestoreHost: undefined });
+  });
+  it('401 without bearer', async () => {
+    const r = await caught(authenticate(req(), env(), { fetchFn: router({}), now: NOW }));
+    expect(r).toBeInstanceOf(Response); expect(r.status).toBe(401);
+    expect((await r.json()).error.code).toBe('UNAUTHENTICATED');
+  });
+  it('401 for invalid token', async () => {
+    expect((await caught(authenticate(req('bad.token.x'), env(), { fetchFn: router({}), now: NOW }))).status).toBe(401);
+  });
+  it('user is null (no throw) when users doc missing', async () => {
+    const out = await authenticate(req(await sign(good())), env(), { fetchFn: router(null), now: NOW });
+    expect(out.user).toBeNull();
+    expect(out.uid).toBe('u1');
+  });
+  it('does not reject disabled users (caller decides)', async () => {
+    const out = await authenticate(req(await sign(good())), env(), { fetchFn: router({ role: 'admin', disabled: true }), now: NOW });
+    expect(out.user.disabled).toBe(true);
+  });
+  it('emulator mode: owner token and emulator firestore host', async () => {
+    const e = { FIREBASE_PROJECT_ID: DEMO, FIREBASE_AUTH_EMULATOR_HOST: 'h:9099', FIRESTORE_EMULATOR_HOST: 'h:8080' };
+    const f = vi.fn(async () => new Response(JSON.stringify({ fields: encodeFields({ role: 'admin' }) }), { status: 200 }));
+    const out = await authenticate(req(unsigned(good(demoClaims))), e, { fetchFn: f, now: NOW });
+    expect(out.accessToken).toBe('owner');
+    expect(out.firestoreHost).toBe('h:8080');
+    expect(out.projectId).toBe(DEMO);
+  });
+  it('requests the cloud-platform scope', async () => {
+    const f = router({ role: 'admin' });
+    await authenticate(req(await sign(good())), env(), { fetchFn: f, now: NOW });
+    const tokenCall = f.mock.calls.find((c) => String(c[0]) === 'https://oauth2.googleapis.com/token');
+    const claims = JSON.parse(Buffer.from(new URLSearchParams(tokenCall[1].body).get('assertion').split('.')[1], 'base64url'));
+    expect(claims.scope).toBe('https://www.googleapis.com/auth/cloud-platform');
   });
 });
 

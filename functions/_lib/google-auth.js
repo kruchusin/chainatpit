@@ -198,10 +198,9 @@ export async function firestorePatch(projectId, path, data, token, { fetchFn = f
   return res.json();
 }
 
-export async function requireAdmin(request, env, deps = {}) {
+export async function authenticate(request, env, deps = {}) {
   const { fetchFn = fetch, now = Date.now() } = deps;
   const unauth = () => errorJson(401, 'UNAUTHENTICATED', 'กรุณาเข้าสู่ระบบ');
-  const forbidden = () => errorJson(403, 'FORBIDDEN', 'ไม่มีสิทธิ์ใช้งานส่วนนี้');
 
   const m = /^Bearer\s+(.+)$/i.exec(request.headers.get('Authorization') || '');
   if (!m) throw unauth();
@@ -216,12 +215,17 @@ export async function requireAdmin(request, env, deps = {}) {
   }
 
   const projectId = env.FIREBASE_PROJECT_ID;
+  const firestoreHost = emulator ? env.FIRESTORE_EMULATOR_HOST : undefined;
   const accessToken = emulator
     ? 'owner'
     : await getAccessToken(JSON.parse(env.FIREBASE_SERVICE_ACCOUNT), ['https://www.googleapis.com/auth/cloud-platform'] /* Firestore + Identity Toolkit */, { fetchFn, now });
-  const user = await firestoreGet(projectId, `users/${uid}`, accessToken, {
-    fetchFn, firestoreHost: emulator ? env.FIRESTORE_EMULATOR_HOST : undefined,
-  });
-  if (!user || user.role !== 'admin' || user.disabled === true) throw forbidden();
+  // user is null when the users doc is missing; the caller decides what that means.
+  const user = await firestoreGet(projectId, `users/${uid}`, accessToken, { fetchFn, firestoreHost });
+  return { uid, accessToken, user, projectId, firestoreHost };
+}
+
+export async function requireAdmin(request, env, deps = {}) {
+  const { uid, accessToken, user } = await authenticate(request, env, deps);
+  if (!user || user.role !== 'admin' || user.disabled === true) throw errorJson(403, 'FORBIDDEN', 'ไม่มีสิทธิ์ใช้งานส่วนนี้');
   return { uid, accessToken };
 }
