@@ -46,7 +46,6 @@ export function canWriteMedia(user, parsed, targetDoc, uid, { forDelete = false 
       return isAdmin || prDepts.includes(parsed.id);
     case 'news': {
       if (isCentral) return true; // covers forDelete with the news doc already gone
-      if (forDelete && !targetDoc) return false;
       if (!targetDoc) return false;
       const ids = arr(targetDoc.departmentIds);
       return ids.length > 0 && ids.every((d) => prDepts.includes(d));

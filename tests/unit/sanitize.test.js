@@ -22,6 +22,18 @@ describe('sanitize', () => {
   it('keeps http(s) images', () => {
     expect(s('<img src="https://x/y.jpg">')).toBe('<img src="https://x/y.jpg">');
   });
+  // UNVERIFIED in sandbox (needs jsdom)
+  it('keeps same-origin /media/ images', () => {
+    expect(s('<img src="/media/news/n1/a.jpg">')).toBe('<img src="/media/news/n1/a.jpg">');
+  });
+  it('drops protocol-relative, backslash, data:, javascript: and other relative image srcs', () => {
+    expect(s('<img src="//evil.com/a.jpg">')).toBe('');
+    expect(s('<img src="/\\evil.com/a.jpg">')).toBe('');
+    expect(s('<img src="data:image/png;base64,AAAA">')).toBe('');
+    expect(s('<img src="javascript:alert(1)">')).toBe('');
+    expect(s('<img src="/other/a.jpg">')).toBe('');
+    expect(s('<img src="a.jpg">')).toBe('');
+  });
   it('strips javascript: links', () => {
     expect(s('<a href="javascript:alert(1)">x</a>')).toBe('<a>x</a>');
   });

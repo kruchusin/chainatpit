@@ -20,6 +20,8 @@ export async function onRequest(context) {
     const headers = new Headers({
       'Content-Type': (obj.httpMetadata && obj.httpMetadata.contentType) || 'application/octet-stream',
       'Cache-Control': 'public, max-age=31536000, immutable',
+      'X-Content-Type-Options': 'nosniff',
+      'Content-Security-Policy': "default-src 'none'; sandbox",
     });
     if (obj.httpEtag) headers.set('ETag', obj.httpEtag);
     return new Response(request.method === 'HEAD' ? null : obj.body, { status: 200, headers });

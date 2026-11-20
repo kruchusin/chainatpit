@@ -147,6 +147,57 @@ describe('POST /api/media', () => {
   });
 });
 
+describe('early guards (before body read)', () => {
+  async function rawPost({ user, headers = {}, r2 = fakeR2() } = {}) {
+    const fs = fsRouter({ user });
+    const fd = new FormData();
+    fd.set('path', 'site/logo.jpg');
+    fd.set('file', jpg());
+    const request = new Request('https://x/api/media', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${await sign(good())}`, ...headers },
+      body: fd,
+    });
+    const formData = vi.spyOn(request, 'formData');
+    const res = await apiMedia({ request, env: { ...env, MEDIA: r2 }, data: { deps: { fetchFn: fs.fetchFn, now: NOW } } });
+    return { res, r2, formData, body: await res.json() };
+  }
+  it('POST by disabled user -> 403, body never read, no put', async () => {
+    const { res, r2, formData, body } = await rawPost({ user: { role: 'admin', disabled: true } });
+    expect(res.status).toBe(403);
+    expect(body.error.code).toBe('FORBIDDEN');
+    expect(formData).not.toHaveBeenCalled();
+    expect(r2.calls.put).toHaveLength(0);
+  });
+  it('POST with missing users doc -> 403, body never read', async () => {
+    const fs = fsRouter();
+    const fetchFn = vi.fn(async (url, init) => (String(url) === `${DOC}/users/u1` ? new Response('', { status: 404 }) : fs.fetchFn(url, init)));
+    const fd = new FormData();
+    fd.set('path', 'site/logo.jpg');
+    fd.set('file', jpg());
+    const request = new Request('https://x/api/media', { method: 'POST', headers: { Authorization: `Bearer ${await sign(good())}` }, body: fd });
+    const formData = vi.spyOn(request, 'formData');
+    const r2 = fakeR2();
+    const res = await apiMedia({ request, env: { ...env, MEDIA: r2 }, data: { deps: { fetchFn, now: NOW } } });
+    expect(res.status).toBe(403);
+    expect(formData).not.toHaveBeenCalled();
+    expect(r2.calls.put).toHaveLength(0);
+  });
+  it('POST with Content-Length > 2.5MiB -> 413 TOO_LARGE, body never read, no put', async () => {
+    const { res, r2, formData, body } = await rawPost({ headers: { 'content-length': String(2.5 * 1024 * 1024 + 1) } });
+    expect(res.status).toBe(413);
+    expect(body.error.code).toBe('TOO_LARGE');
+    expect(formData).not.toHaveBeenCalled();
+    expect(r2.calls.put).toHaveLength(0);
+  });
+  it('DELETE by disabled user -> 403, no delete/list', async () => {
+    const r2 = fakeR2({ 'site/logo.jpg': { body: 1, opts: {} } });
+    const { res } = await del({ path: 'site/logo.jpg' }, { user: { role: 'admin', disabled: true }, r2 });
+    expect(res.status).toBe(403);
+    expect(r2.calls.delete).toHaveLength(0);
+  });
+});
+
 describe('DELETE /api/media', () => {
   const seed = () => fakeR2({
     'news/n1/a.jpg': { opts: {} }, 'news/n1/b.jpg': { opts: {} }, 'news/n1/c.jpg': { opts: {} },
@@ -200,7 +251,15 @@ describe('GET /media/*', () => {
     expect(res.headers.get('Content-Type')).toBe('image/jpeg');
     expect(res.headers.get('Cache-Control')).toBe(CACHE);
     expect(res.headers.get('ETag')).toBe('"etag1"');
+    expect(res.headers.get('X-Content-Type-Options')).toBe('nosniff');
+    expect(res.headers.get('Content-Security-Policy')).toBe("default-src 'none'; sandbox");
     expect([...new Uint8Array(await res.arrayBuffer())]).toEqual([1, 2, 3]);
+  });
+  it('HEAD also carries security headers', async () => {
+    const r2 = fakeR2({ 'site/logo.jpg': { body: new Uint8Array([1]), opts: { httpMetadata: { contentType: 'image/jpeg' } } } });
+    const res = await serveMedia({ request: new Request('https://x/media/site/logo.jpg', { method: 'HEAD' }), env: { ...env, MEDIA: r2 }, params: { path: ['site', 'logo.jpg'] }, data: {} });
+    expect(res.headers.get('X-Content-Type-Options')).toBe('nosniff');
+    expect(res.headers.get('Content-Security-Policy')).toBe("default-src 'none'; sandbox");
   });
   it('missing -> 404', async () => {
     expect((await get(['site', 'nope.jpg'], fakeR2())).status).toBe(404);

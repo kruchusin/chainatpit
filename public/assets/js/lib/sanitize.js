@@ -11,9 +11,10 @@ export function createSanitizer(DOMPurify) {
       const src = node.getAttribute('src') || '';
       if (!src.startsWith(YOUTUBE_PREFIX)) node.parentNode && node.parentNode.removeChild(node);
     } else if (tag === 'img') {
-      // only http(s) images: removes data:, relative and any other source (done on the DOM, not by regex)
+      // only http(s) images or same-origin /media/ (single slash; not // or /\): removes data: and any other source
       const src = (node.getAttribute('src') || '').trim().toLowerCase();
-      if (!src.startsWith('https://') && !src.startsWith('http://')) node.parentNode && node.parentNode.removeChild(node);
+      const ok = src.startsWith('https://') || src.startsWith('http://') || (src.startsWith('/media/') && !/^\/[\\/]/.test(src));
+      if (!ok) node.parentNode && node.parentNode.removeChild(node);
     } else if (tag === 'a' && node.hasAttribute('target')) {
       node.setAttribute('rel', 'noopener');
     }

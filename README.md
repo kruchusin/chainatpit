@@ -9,7 +9,7 @@
 
 | ส่วน | ใช้ทำอะไร |
 |---|---|
-| Cloudflare Pages | เก็บและเสิร์ฟเว็บไซต์ (ฟรี) รวมถึงโฟลเดอร์ `functions/` |
+| Cloudflare Pages | เก็บและเสิร์ฟเว็บไซต์ (ฟรี ส่วน `functions/` มีโควตา 100,000 คำขอ/วัน ดูข้อ 6.1) |
 | Firebase (โปรเจกต์ `chainatpit-a8c9c`) | ฐานข้อมูล Firestore และระบบล็อกอิน (ใช้แผน Spark ฟรีได้ ไม่ต้องผูกบัตร) |
 | Cloudflare R2 (bucket `chainatpit-media`) | เก็บรูปภาพทั้งหมด (ข่าว บุคลากร ฝ่าย) เสิร์ฟผ่านที่อยู่ `/media/...` ของเว็บเอง |
 | GitHub | เก็บไฟล์ของเว็บ เมื่อมีการอัปเดต Cloudflare จะนำไปเผยแพร่ให้เอง |
@@ -190,7 +190,7 @@ npm test
    - **Build command: เว้นว่าง**
    - **Build output directory: `public`**
    - Root directory: เว้นว่าง (โฟลเดอร์ `functions/` ต้องอยู่ที่ราก repo)
-3. เพิ่ม Environment variables (Settings -> Variables and Secrets ทั้งแบบ Production)
+3. เพิ่ม Environment variables (Settings -> Variables and Secrets ตั้งให้ครบ **ทั้ง Production และ Preview** เหมือนการผูก `MEDIA` ไม่เช่นนั้นการอัปโหลดรูปและการจัดการผู้ใช้จะใช้ไม่ได้บน preview deployment)
 
    | ชื่อ | ค่า |
    |---|---|
@@ -205,7 +205,8 @@ npm test
 6. กด Save and Deploy จะได้ที่อยู่แบบ `https://ชื่อโปรเจกต์.pages.dev`
 
 > หมายเหตุ: การอัปโหลดแบบ drag-and-drop ในหน้า dashboard ของ Cloudflare **ไม่รองรับ Functions**
-> (หน้าข่าวแชร์ Facebook และการจัดการบัญชีผู้ใช้จะไม่ทำงาน) จึงต้องใช้วิธีเชื่อม GitHub ตามนี้เท่านั้น
+> (หน้าข่าวแชร์ Facebook การจัดการบัญชีผู้ใช้ และการอัปโหลด/แสดงรูปภาพจะไม่ทำงาน) จึงต้องใช้วิธีเชื่อม GitHub ตามนี้เท่านั้น
+> โปรเจกต์นี้ตั้งใจ **ไม่มีไฟล์ `wrangler.toml`** (ตัวแปรและ binding ตั้งในหน้า dashboard) ถ้าเพิ่มไฟล์นี้พร้อม `pages_build_output_dir` ค่าใน dashboard จะถูกแทนที่
 > ถ้าแก้ตัวแปรแล้วต้อง Deploy ใหม่ (Retry deployment) ค่าจึงจะมีผล
 
 ### 6.1 เปิด Cloudflare R2 (ที่เก็บรูป) และผูกกับ Pages
@@ -221,6 +222,10 @@ npm test
 4. กด **Redeploy** (Deployments -> ... -> Retry deployment) เพื่อให้การผูกมีผล
 
 ตรวจว่าใช้ได้: ล็อกอินหลังบ้านแล้วลองอัปโหลดรูปข่าว รูปต้องแสดงที่ที่อยู่แบบ `/media/news/...`
+
+> **โควตา Functions รายวัน:** รูปทุกรูปเสิร์ฟผ่าน Pages Function (`functions/media/[[path]].js`) การเปิดดูรูปครั้งแรกแต่ละรูปนับเป็น 1 คำขอ
+> แผน Free ของ Workers/Pages Functions จำกัด **100,000 คำขอต่อวัน** รวมกับ `/api/*` และ `/news/*` ดูการใช้งานได้ที่ Workers & Pages -> เลือกโปรเจกต์ -> **Metrics**
+> ถ้าเกินโควตา ให้อัปเกรดเป็นแผน **Workers Paid** (วิธีแก้)
 
 ---
 
@@ -376,6 +381,7 @@ $env:R2_BUCKET = "chainatpit-media"
 | Functions ตอบ **401** (`UNAUTHENTICATED`) | ไม่ได้ล็อกอินหรือ token หมดอายุ/ผิด ให้ออกจากระบบแล้วเข้าใหม่ และตรวจว่า `FIREBASE_PROJECT_ID` ใน Pages ตรงกับ `chainatpit-a8c9c` |
 | Functions ตอบ **403** (`FORBIDDEN`) | บัญชีนี้ไม่ใช่แอดมิน หรือถูกปิดใช้งาน (การจัดการผู้ใช้ทำได้เฉพาะแอดมิน) |
 | รูปขึ้น **404** หรืออัปโหลดรูปแล้วได้ **500** | ตรวจว่า Pages ผูก R2 bucket `chainatpit-media` ด้วยชื่อตัวแปร `MEDIA` ครบทั้ง Production และ Preview (ข้อ 6.1) แล้วกด Redeploy |
+| รูปหายทั้งเว็บแต่หน้าเว็บเปิดได้ / อัปโหลดไม่ได้ | ตรวจโควตา Functions รายวัน (100,000 คำขอ/วัน แผน Free) ที่ Workers & Pages -> โปรเจกต์ -> Metrics ถ้าเต็มให้รอรีเซ็ตวันถัดไปหรืออัปเกรดเป็น Workers Paid (ข้อ 6.1) |
 | Functions ตอบ **500** หรือสร้างบัญชีไม่ได้ | ตรวจ `FIREBASE_SERVICE_ACCOUNT` ใน Pages: ต้องเป็น JSON ทั้งไฟล์ครบทุกบรรทัด ไม่ใช่เฉพาะบางส่วน และได้กด Retry deployment หลังแก้แล้ว |
 | หน้าข่าวแชร์ Facebook ไม่ขึ้นรูป/ชื่อ | ตรวจ `FIREBASE_API_KEY` ใน Pages และว่า API key ไม่ได้ถูกจำกัด HTTP referrer (เซิร์ฟเวอร์ Cloudflare เรียกโดยไม่มี referrer จึงจะถูกปฏิเสธ) แล้วกด Scrape Again ใน Sharing Debugger |
 | ล็อกอินไม่ได้บนโดเมนจริง | ยังไม่ได้เพิ่ม Authorized domains (ข้อ 8) |

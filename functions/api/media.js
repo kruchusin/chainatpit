@@ -4,6 +4,7 @@ import { json, errorJson } from '../_lib/http.js';
 import { parseMediaPath, parseMediaPrefix, targetDocPath, canWriteMedia } from '../_lib/media-auth.js';
 
 const MAX_BYTES = 2 * 1024 * 1024;
+const MAX_BODY_BYTES = 2.5 * 1024 * 1024; // multipart overhead headroom, checked before reading the body
 const TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const CACHE = 'public, max-age=31536000, immutable';
 const DELETE_CHUNK = 1000;
@@ -20,6 +21,9 @@ async function loadTarget(a, parsed, fetchFn) {
 
 async function handlePost(context, a, deps, fetchFn) {
   const { request, env } = context;
+  if (!a.user || a.user.disabled === true) return forbidden();
+  const len = Number(request.headers.get('content-length'));
+  if (Number.isFinite(len) && len > MAX_BODY_BYTES) return errorJson(413, 'TOO_LARGE', 'ไฟล์รูปใหญ่เกินไป');
   let form;
   try { form = await request.formData(); } catch { return invalid(); }
   const path = form.get('path');
@@ -41,6 +45,7 @@ async function handlePost(context, a, deps, fetchFn) {
 
 async function handleDelete(context, a, fetchFn) {
   const { request, env } = context;
+  if (!a.user || a.user.disabled === true) return forbidden();
   let b = null;
   try { b = await request.json(); } catch { /* invalid JSON */ }
   if (!b || typeof b !== 'object' || Array.isArray(b)) return invalid();
